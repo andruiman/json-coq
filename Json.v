@@ -152,7 +152,10 @@ Eval compute in (jsonmap (fun x => {}) {"foo" # $"foo", "bar" # $"bar"}).
 Definition mlookup {X} (m: @key_map X) (k: key) :=
 firstSome (mapkeymap (fun k' v => if (string_dec k k') then Some v else None) m).
 
-Fixpoint json_get (kk: key + nat) (j: json) {struct j}: option json :=
+Definition jpoint:Set := key + nat.
+Definition jpath  := list jpoint.
+
+Fixpoint json_get (kk: jpoint) (j: json) {struct j}: option json :=
 match kk with
 | inl k => match j with
               | & m  => mlookup m k
@@ -175,7 +178,7 @@ Eval compute in (json_get (inr 2) '[$"Andy"; $"Peter"]).
 Eval compute in (json_get (inr 0) $"Andy").
 Eval compute in (json_get (inl "foo") $"Andy").
 
-Fixpoint json_getin (lk: list (key + nat)) (j: json): option json :=
+Fixpoint json_getin (lk: jpath) (j: json): option json :=
 match lk with
 | [] => Some j
 | k::ks => let mj' := json_get k j in
@@ -302,8 +305,6 @@ Inductive MergeStrategyT :=
 Definition MergeStrategy0 := MergeStrategy SMergeRight SLeaveOrigin 
                              SLeaveNodeName SLeaveNodeName.
 
-Eval compute in ("d" ++ "b").
-
 Definition indexNat (n: nat):  string :=
 "#" ++ (writeNat n).
 
@@ -325,14 +326,14 @@ end.
 
 Definition tlookup {X} (tm: list (key*(tree X key))) (k: key) :=
 firstSome (map (fun (k'v: key*(tree X key)) => let (k', v) := k'v in
-                           if (string_dec k k') then Some v else None) tm).
+                           if (String.eqb k k') then Some v else None) tm).
 
 Definition tlookup_ind {X} (tm: list (key*(tree X key))) (k: key) :=
 firstSome_ind (map (fun (k'v: key*(tree X key)) => let (k', v) := k'v in
-                           if (string_dec k k') then Some v else None) tm).
+                           if (String.eqb k k') then Some v else None) tm).
 
 
-Fixpoint tree_get (kk: key + nat) (jt: jtree) {struct jt}: option (nat*jtree) :=
+Fixpoint tree_get (kk: jpoint) (jt: jtree) {struct jt}: option (nat*jtree) :=
 match kk with
 | inl k => match jt with
               | tmbranch tm => tlookup_ind tm k
@@ -344,7 +345,7 @@ match kk with
            end
 end.
 
-Fixpoint tree_getin (lk: list (key + nat)) (jt: jtree): option jtree :=
+Fixpoint tree_getin (lk: jpath) (jt: jtree): option jtree :=
 match lk with
 | [] => Some jt
 | k::ks => let mjt' := tree_get k jt in
@@ -368,101 +369,115 @@ Eval compute in (replace 0 [] 0).
 Eval compute in (replace 0 [1] 0).
 
 
-Fixpoint tree_setin (lk: list (key + nat)) (to_jt jt: jtree): option jtree :=
+Fixpoint tree_setin (lk: jpath) (to_jt jt: jtree): jtree :=
 match lk with
-| [] => Some jt
+| [] => jt
 | k::ks => let mjt' := tree_get k to_jt in
            match mjt' with
-           | None => None
-           | Some (n, to_jt') => let mnt := tree_setin ks to_jt' jt in
-                                 match k, to_jt, mnt with
-                                 | _,_,None => None
-                                 | inr k, tlbranch tl, Some nt => Some (tlbranch (replace n tl (k, nt)))
-                                 | inl k, tmbranch tm, Some nt => Some (tmbranch (replace n tm (k, nt)))
-                                 | _,_,_ => None
+           | None => to_jt
+           | Some (n, to_jt') => let nt := tree_setin ks to_jt' jt in
+                                 match k, to_jt with
+                                 | inr k, tlbranch tl => (tlbranch (replace n tl (k, nt)))
+                                 | inl k, tmbranch tm => (tmbranch (replace n tm (k, nt)))
+                                 | _,_ => to_jt
                                  end
            end 
 end.
 
+Definition tree_modify (lk_in: jpath) (jt: jtree) (f: jtree -> jtree) : jtree :=
+let mjt' := tree_getin lk_in jt in
+match mjt' with
+| Some jt' => tree_setin lk_in jt (f jt')
+| None => jt
+end.
 
-Eval compute in (tree_setin [inr 2; inl "baz"; inl "x"; inr 1]
+Example tsetin1 : tree_json 
+                  (tree_setin [inr 2; inl "baz"; inl "x"; inr 1]
+                   (json_tree '[{"foo" # '[$"Andy"; $"Peter"]}; 
+                     {"bar" # $"Good"};
+                     {"baz" # {"x" # '[$"d"; $"f"]}}]) (tleaf "e")) = 
+                  Some '[{"foo" # '[$"Andy"; $"Peter"]}; 
+                    {"bar" # $"Good"};
+                    {"baz" # {"x" # '[$"d"; $"e"]}}].
+Proof. auto. Qed.
+
+Definition concat_tree_with (d: data) (jt: jtree): jtree :=
+match jt with
+| tleaf s => tleaf s
+| tlbranch tl => tleaf (fold_right (fun i r => match i with
+                                        | (_, tleaf s) => if (String.eqb r "") then s 
+                                                          else (s ++ d ++ r)
+                                        | _ => r
+                                        end) ""  tl)
+| tmbranch tm => tleaf (fold_right (fun i r => match i with
+                                        | (_, tleaf s) => if (String.eqb r "") then s 
+                                                          else (s ++ d ++ r)
+                                        | _ => r
+                                        end) ""  tm)
+end.
+
+Example tmodify1: tree_json (tree_modify [inr 0; inl "foo"]
+                  (json_tree ('[{"foo" # '[$"Andy"; $"Peter"]}; 
+                    {"bar" # $"Good"};
+                    {"baz" # {"x" # '[$"d"; $"f"]}}])) (concat_tree_with " ")) = 
+                  Some '[{"foo" # $"Andy Peter"}; 
+                    {"bar" # $"Good"};
+                    {"baz" # {"x" # '[$"d"; $"f"]}}].
+Proof. auto. Qed.
+
+Example tsetin2: tree_json (tree_setin [inr 2; inl "baz"; inl "x"; inr 0]
                  (json_tree ('[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
-                    {"baz" # {"x" # '[$"d"; $"f"]}}])) (tleaf "e")).
-
-Example eq2: forall a, a = (tree_setin [inr 2; inl "baz"; inl "x"; inr 0]
-                 (json_tree ('[{"foo" # '[$"Andy"; $"Peter"]}; 
-                    {"bar" # $"Good"};
-                    {"baz" # {"x" # '[$"d"; $"f"]}}])) (tleaf "e")) ->
-                    exists t, a = Some t /\
-                    tree_json t = Some '[{"foo" # '[$"Andy"; $"Peter"]}; 
+                    {"baz" # {"x" # '[$"d"; $"f"]}}])) (tleaf "e")) =
+                 Some '[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
                     {"baz" # {"x" # '[$"e"; $"f"]}}].
-Proof.
- intros. compute in H. exists (tlbranch
-         [(0,
-          tmbranch
-            [("foo",
-             tlbranch
-               [(0, tleaf "Andy");
-               (1, tleaf "Peter")])]);
-         (1,
-         tmbranch
-           [("bar", tleaf "Good")]);
-         (2,
-         tmbranch
-           [("baz",
-            tmbranch
-              [("x",
-               tlbranch
-                 [(0, tleaf "e");
-                 (1, tleaf "f")])])])]).
- split. rewrite H. auto.
- compute. auto.
-Qed.
+Proof. auto. Qed.
 
-Definition tree_mergein (lk: list (key + nat)) (to_jt jt: jtree) s: option jtree :=
+Definition tree_mergein (lk: jpath) (to_jt jt: jtree) s: jtree :=
 let mjt':= tree_getin lk to_jt in
 match mjt' with
-| None => None
+| None => to_jt
 | Some to_jt' => tree_setin lk to_jt (merge_trees to_jt' jt s)
 end.
 
-Eval compute in (tree_mergein [inr 2; inl "baz"; inl "x"]
+Example tmergein1: tree_json (tree_mergein [inr 2; inl "baz"; inl "x"]
                  (json_tree ('[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
-                    {"baz" # {"x" # '[$"d"; $"f"]}}])) (tleaf "j") MergeStrategy0).
+                    {"baz" # {"x" # '[$"d"; $"f"]}}])) (tleaf "j") MergeStrategy0) =
+                    Some '[{"foo" # '[$"Andy"; $"Peter"]}; 
+                    {"bar" # $"Good"};
+                    {"baz" # {"x" # '[$"d"; $"f"; $"j"]}}].
+Proof. auto. Qed.
 
-
-Definition tree_submerge (lk_to lk_from: list (key + nat)) 
-                         (jt: jtree) (s: MergeStrategyT): option jtree :=
+Definition tree_submerge (lk_to lk_from: jpath) 
+                         (jt: jtree) (s: MergeStrategyT): jtree :=
 let mjt_from' := tree_getin lk_from jt in
 match mjt_from' with
 | Some jt_from' => tree_mergein lk_to jt jt_from' s
-| None => None
+| None => jt
 end.
 
-Let t0:= (tree_submerge [inr 0]
-                               [inr 2; inl "baz"; inl "x"]
-                 (json_tree ('[{"foo" # '[$"Andy"; $"Peter"]}; 
+Example tsmerge1: tree_json (tree_submerge [inr 0] [inr 2; inl "baz"; inl "x"]
+                  (json_tree ('[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
-                    {"baz" # {"x" # '[$"d"; $"f"]}}])) MergeStrategy0).
+                    {"baz" # {"x" # '[$"d"; $"f"]}}])) MergeStrategy0) = 
+                   Some '[{"foo" # '[$"Andy"; $"Peter"], "#0" # $"d", "#1" # $"f"}; 
+                    {"bar" # $"Good"};
+                    {"baz" # {"x" # '[$"d"; $"f"]}}].
+Proof. compute. auto. Qed.
 
-Eval compute in t0.
+Inductive jnode := 
+| data_node: data -> jnode
+| root_node: jnode.
 
-Eval compute in (option_map (tree_getin [inr 0; inl "#1"]) t0).
-
-Inductive node := 
-| data_node: data -> node
-| root_node: node.
-
-Definition jtable_row := list node.
+Definition jtable_row := list jnode.
 
 Fixpoint json_nodes (j: json): jtable_row :=
-match j return (list node) with
+match j with
 | $s => [data_node s]
 | 'l => root_node::flatten (map json_nodes l)
-| &m => let fix map_nodes (mm: @key_map json): list node :=
+| &m => let fix map_nodes (mm: @key_map json): jtable_row :=
             match mm with
             | empty => []
             | mapkv k v kvs => app (json_nodes v) (map_nodes kvs)
@@ -495,12 +510,9 @@ Example jtree_json_nodes1: (json_nodes
                  ('[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
                     {"baz" # {"x" # '[$"d"; $"f"]}}]))).
-Proof.
- auto.
-Qed.
+Proof. auto. Qed.
 
-
-Definition jtable := list (list (option (key+nat))). 
+Definition jtable := list (list (option jpoint)). 
 
 Fixpoint list_fill {X} (n: nat) (x:X): list X :=
 match n with
@@ -508,36 +520,22 @@ match n with
 | S n' => x::(list_fill n' x)
 end.
 
-Eval compute in (list_fill 5 0). 
-
-Definition jtable_fill (n: nat) (a: option (key+nat))
-                      : jtable:=
+Definition jtable_fill (n: nat) (a: option jpoint): jtable:=
 list_fill n (list_fill n None).
 
-Eval compute in (jtable_fill 5).
-
-Definition jtable_set (jt: jtable) (m n: nat) (a: option (key+nat)) :=
+Definition jtable_set (jt: jtable) (m n: nat) (a: option jpoint) : jtable :=
 let ml := nth_error jt m in
 match ml with
 | Some l => replace m jt (replace n l a)
 | None => jt
 end.
 
+Inductive indjnode := 
+| ind_data_node: nat -> data -> indjnode
+| ind_root_node: nat -> nat -> indjnode.
 
-Eval compute in (jtable_set (jtable_fill 5 None) 2 3 (Some (inl "foo"))).
-Check indexate.
-
-Inductive indnode := 
-| ind_data_node: nat -> data -> indnode
-| ind_root_node: nat -> nat -> indnode.
-
-Check (8,7,6).
-
-Eval compute in (let (a,b):=(8,7,6) in a).
-
-Fixpoint jtree_table' (m n: nat) (k: option (key+nat)) (jr: list indnode)
-                      (jt: jtree) (jtb: jtable) {struct jt}: 
-                      nat*(list indnode)*jtable :=
+Fixpoint jtree_table' (m n: nat) (k: option jpoint) (jr: list indjnode)
+                      (jt: jtree) (jtb: jtable) {struct jt}: nat*(list indjnode)*jtable :=
 match jt with
 | tleaf s => let newtb := jtable_set jtb m n k in
              (S n, app jr [ind_data_node n s] , newtb)
@@ -565,8 +563,9 @@ match jt with
                  iter_tree n (S n) k tm jr' newtb'
 end.
 
-Definition jtree_table jt := jtree_table' 0 0 None [] jt 
-                             (jtable_fill (length (jtree_nodes jt)) None).
+Definition jtree_table jt := let tb3 := jtree_table' 0 0 None [] jt 
+                             (jtable_fill (length (jtree_nodes jt)) None) in
+                             (snd (fst tb3), snd tb3).
 
 Let j1 := '[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
@@ -580,9 +579,8 @@ Eval compute in jtb10.
 Let jtb1 := jtree_table t1.
 Eval compute in (jtb1, tn1).
 
-Check nth_error.
-
-Fixpoint jtable_tree' (n: nat) (m: nat) (jr: jtable_row) (jtb: jtable) {struct n}: option jtree :=
+Fixpoint jtable_tree' (n: nat) (m: nat) 
+                      (jr: jtable_row) (jtb: jtable) {struct n}: option jtree :=
 match n with
 | O => None
 | S n' => 
@@ -646,22 +644,16 @@ Definition jtable_tree jr jtb := jtable_tree' ((length jr)*(length jr)) 0 jr jtb
 Let t2:=(jtable_tree tn1 (snd jtb1)).
 
 Example jtt_eq1: Some t1 = t2.
-Proof.
- auto.
-Qed.
+Proof. auto. Qed.
 
-Definition clear_node_index (l: list indnode) : jtable_row :=
+Definition clear_node_index (l: list indjnode) : jtable_row :=
 map (fun n => match n with
 | ind_data_node _ s => data_node s
 | ind_root_node _ _ => root_node
 end) l.
 
-Eval compute in (tn1, snd (fst jtb1)).
-
-Example jtt_eq2: tn1 = clear_node_index (snd (fst jtb1)).
-Proof.
- auto.
-Qed.
+Example jtt_eq2: tn1 = clear_node_index (fst jtb1).
+Proof. auto. Qed.
 
 Let json1 := {"menu" # {"header" # $"SVG Viewer",
     "items" # '[
@@ -698,7 +690,7 @@ Let tree11 := jtable_tree row1 (snd table1).
 Example test2 : Some tree1 = tree11.
 Proof. auto. Qed.
 
-Fixpoint find' (k: key + nat) (l: list (nat*option (key + nat))) : option nat :=
+Fixpoint find' (k: jpoint) (l: list (nat*option jpoint)) : option nat :=
 match l with
 | [] => None
 | (n,k')::ks => match k, k' with
@@ -715,8 +707,8 @@ Eval compute in (find (inl "foo") [None; None; Some (inl "foo"); Some (inr 4)]).
 Eval compute in (find (inr 14) [None; None; Some (inl "foo"); Some (inr 4)]).
 
 
-Fixpoint path_pair' (n:nat) (lk: list (key + nat)) 
-                     (jr: list indnode) (jtb: jtable) : option (nat + nat*nat) :=
+Fixpoint path_ind' (n:nat) (lk: jpath) (jr: list indjnode) (jtb: jtable) : 
+                                                  option (nat + nat*nat) :=
 match lk with
 | [] => let mv := nth_error jr n in
         match mv with
@@ -730,89 +722,105 @@ match lk with
            | Some r => let mn := find k r in
                        match mn with
                        | None => None
-                       | Some n => path_pair' n ks jr jtb
+                       | Some n => path_ind' n ks jr jtb
                        end
            end
 end.
 
+Definition tree_path_ind lk jt :=
+let (jr, tb) := jtree_table jt in
+path_ind' 0 lk jr tb.
 
-Definition tree_path_pair lk jt :=
-let tb3 := jtree_table jt in
-let (njr, tb) := tb3 in
-let (_, jr) := njr in
-path_pair' 0 lk jr tb.
-
-Eval compute in (tree_path_pair [inr 2; inl "baz"; inl "x"]
+Eval compute in (tree_path_ind [inr 2; inl "baz"; inl "x"]
                  (json_tree ('[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
                     {"baz" # {"x" # '[$"d"; $"f"]}}]))).
+                    
+Eval compute in (tree_path_ind [inr 1; inl "bar"]
+                 (json_tree ('[{"foo" # '[$"Andy"; $"Peter"]}; 
+                    {"bar" # $"Good"};
+                    {"baz" # {"x" # '[$"d"; $"f"]}}]))).
+
                     
 Eval compute in  (nth_error (snd (jtree_table
                  (json_tree ('[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
                     {"baz" # {"x" # '[$"d"; $"f"]}}])))) 8).
 
-Check replace.
 
-Check jtable_set.
-(*jtable ->
-       nat ->
-       nat ->
-       option
-         (key + nat)*)
+Definition table_json_default jr tb j :=
+let mtr := jtable_tree jr tb in
+match mtr with
+| None => j
+| Some tr => let mj' := tree_json  tr in
+                         match mj' with
+                         | None => j
+                         | Some j' => j'
+                         end
+end.
 
-Check data.
-Definition json_rename lk j (newv: data + key) :=
+Definition mnth_error {X} (ll: list (list (option X))) m n : option X :=
+let ml := nth_error ll m in
+match ml with 
+| None => None
+| Some l => let mk := nth_error l n in
+            match mk with
+            | Some None => None
+            | Some x => x
+            | None => None
+            end
+end. 
+
+Fixpoint replaceSome {X} (l: list (option X)) x :=
+match l with 
+| [] => []
+| a::l' => if a then x::(replaceSome l' x)
+                else a::(replaceSome l' x)
+end.
+
+Definition json_rename j (newv: data + key) lk :=
 let tr := json_tree j in
-let tb3 := jtree_table tr in
-let (njr, tb) := tb3 in
-let (_, jr) := njr in
-let minds := tree_path_pair lk tr in
+let (jr, tb) := jtree_table tr in
+let minds := tree_path_ind lk tr in
 match minds, newv with
 | None, _  => j
-| Some (inl k), inl newv => let jr' := replace k (clear_node_index jr) (data_node newv) in
-                  let mtr' := jtable_tree jr' tb in
-                  match mtr' with
-                  | None => j
-                  | Some tr' => let mj' := tree_json  tr' in
-                                match mj' with
-                                | None => j
-                                | Some j' => j'
-                                end
-                  end
+| Some (inl k), inl newv => 
+                  let jr' := replace k (clear_node_index jr) (data_node newv) in
+                  table_json_default jr' tb j
+| Some (inl k), inr newv =>  let tb' := fold_right (fun m tb => let x := mnth_error tb m k in
+                                                                if x then jtable_set tb m k (Some (inl newv))
+                                                                     else tb) tb (seq 0 (length jr)) in
+                             table_json_default (clear_node_index jr) tb' j
 | Some (inr (m, n)), inr newv => 
                   let tb' := jtable_set tb m n (Some (inl newv)) in
-                  let mtr' := jtable_tree (clear_node_index jr) tb' in
-                  match mtr' with
-                  | None => j
-                  | Some tr' => let mj' := tree_json  tr' in
-                                match mj' with
-                                | None => j
-                                | Some j' => j'
-                                end
-                  end
+                  table_json_default (clear_node_index jr) tb' j 
 | _, _ =>  j
 end.
 
-
-Example rename1: (json_rename [inr 2; inl "baz"; inl "x"]
-                  '[{"foo" # '[$"Andy"; $"Peter"]}; 
+Example rename1: (json_rename '[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
-                    {"baz" # {"x" # '[$"d"; $"f"]}}] (inr "y") = 
+                    {"baz" # {"x" # '[$"d"; $"f"]}}] (inr "y") [inr 2; inl "baz"; inl "x"]  = 
                    '[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
                     {"baz" # {"y" # '[$"d"; $"f"]}}]).
 Proof. auto. Qed.
 
-Example rename2: (json_rename [inr 0; inl "foo"; inr 0]
-                  '[{"foo" # '[$"Andy"; $"Peter"]}; 
+Example rename2: (json_rename '[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
-                    {"baz" # {"x" # '[$"d"; $"f"]}}] (inl "Mike") = 
+                    {"baz" # {"x" # '[$"d"; $"f"]}}] (inl "Mike") [inr 0; inl "foo"; inr 0] = 
                    '[{"foo" # '[$"Mike"; $"Peter"]}; 
                     {"bar" # $"Good"};
                     {"baz" # {"x" # '[$"d"; $"f"]}}]).
 Proof. auto. Qed.
 
+Example rename3: json_rename 
+                  '[{"foo" # '[$"Andy"; $"Peter"]}; 
+                    {"bar" # $"Good"};
+                    {"baz" # {"x" # '[$"d"; $"f"]}}] (inr "y") [inr 1; inl "bar"] = 
+                    '[{"foo" # '[$"Andy"; $"Peter"]}; 
+                    {"y" # $"Good"};
+                    {"baz" # {"x" # '[$"d"; $"f"]}}].
+Proof. auto. Qed.
 
 Let json2 := '[{"type" # $"person",
                 "name" # '[{"given" # '[$"Andy"; $"Michael"], "family" # $"Watson"};
@@ -827,7 +835,7 @@ Let json2 := '[{"type" # $"person",
                 "telecom" # '[{"system" # $"phone", "value" # $"4321"};
                               {"system" # $"phone", "value" # $"8765"};
                               {"system" # $"mail", "value" # $"john@koen.me"}]}].
-                              
+
 Let json3 := '[{"given1" # $"Andy Michael", "family1" # $"Watson",
                 "given2" # $"Andrey", "family2" #  $"Watsonov",
                 "phone1" # $"1234", "phone2" # $"5678",
@@ -839,11 +847,209 @@ Let json3 := '[{"given1" # $"Andy Michael", "family1" # $"Watson",
                 "mail1" # $"john@koen.me"}].
 
 
+Inductive DestructStrategy := DestructStrategy0.
+
+Inductive IndMergeStrategy := 
+| IndRightMergeToNumber : IndMergeStrategy
+| IndRightMergeToKey : (key -> key) -> IndMergeStrategy.
+
+Fixpoint merge_inds (ilt ilf: list (option jpoint)) 
+                    (s:IndMergeStrategy) (b: bool):=
+match ilt, ilf with
+| [], ilf' => ilf'
+| ilt', [] => ilt'
+| None::ilt', (Some x)::ilf' => let l := merge_inds ilt' ilf' s b in
+                         match x, s with
+                         | inl kx, IndRightMergeToNumber => (Some (inr 0))::l
+                         | inr ix, IndRightMergeToNumber => (Some x)::l
+                         | inl kx, IndRightMergeToKey f => (Some (inl (f kx)))::l
+                         | inr ix, IndRightMergeToKey f => (Some (inl (f (writeNat ix))))::l
+                         end
+| x::ilt', None::ilf' => x::(merge_inds ilt' ilf' s b)
+(*shouldn't be happened*)
+| (Some x)::ilt',(Some y)::ilf' => 
+                            let z:= match x,y with
+                                    | inl kx, inl ky => inl (kx ++ "." ++ ky)
+                                    | inl kx, inr iy => inl (kx ++ "." ++ (indexNat iy))
+                                    | inr ix, inl ky => inr ix (*FIXME:will be ignored, but...*)
+                                    | inr ix, inr iy => inr ix (*FIXME:will be ignored, but...*)
+                                    end in
+                            if b then (Some x)::(merge_inds ilt' ilf' s b)
+                                 else (Some z)::(merge_inds ilt' ilf' s b)
+end.
+
+Definition json_destruct (j: json) (lk: jpath): json :=
+let tr := json_tree j in
+let (jr, tb) := jtree_table tr in
+let minds := tree_path_ind lk tr in
+match minds with
+| None => j
+| Some (inl k) => let tb' := fold_right (fun m tb => jtable_set tb m k None) 
+                                          tb (seq 0 (length jr)) in
+                  table_json_default (clear_node_index jr) tb' j 
+
+| Some (inr (m, n)) => let milt := nth_error tb m in
+                       let milf := nth_error tb n in
+                       let mtr := tree_getin (removelast lk) tr in
+                       let last := last lk (inl "") in
+                       let slast := match last with
+                                    | inr k => writeNat k
+                                    | inl k => k
+                                    end in
+                       match milt, milf, mtr with
+                           | None, _, _ => j
+                           | _, None, _ => j
+                           | _, _, None => j
+                           | _, _, Some (tleaf _) => j
+                           | Some ilt, Some ilf, Some (tlbranch _)  => 
+                                       let ilt' := merge_inds ilt ilf IndRightMergeToNumber true in
+                                       let tb' := replace m tb ilt' in
+                                       let tb'' := jtable_set tb' m n None in
+                                       table_json_default (clear_node_index jr) tb'' j
+                           | Some ilt, Some ilf, Some (tmbranch _)  => 
+                                       let ilt' := merge_inds ilt ilf (IndRightMergeToKey (append slast)) true in
+                                       let tb' := replace m tb ilt' in
+                                       let tb'' := jtable_set tb' m n None in
+                                       table_json_default (clear_node_index jr) tb'' j
+                       end
+end.
+
+Definition json_modify (j: json) (f: jtree -> jtree) (lk: jpath) : json :=
+let tr := json_tree j in
+let tr' := tree_modify lk tr f in
+let mj' := tree_json tr' in
+match mj' with
+| None => j
+| Some j' => j'
+end.
+
+
+Let tree2 := json_tree json2.
+Let tb22 := jtree_table tree2.
+Let tab2 := snd tb22.
+Eval compute in (tree_path_ind [inr 0; inl "name"] tree2).
+Eval compute in (nth_error tab2 1, nth_error tab2 3).
+Eval compute in (nth_error tab2 1).
+Let json21 := (json_destruct json2 [inr 0; inl "name"]).
+Eval compute in json21.
+Eval compute in (json_getin [inr 0; inl "name0"] json21).
+Eval compute in (json_getin [inr 0; inl "name1"] json21).
+Let json22 := json_destruct json21 [inr 0; inl "name0"].
+Let json23 := json_destruct json22 [inr 0; inl "name1"].
+Eval compute in json23.
+Let json24 := json_modify json23 (concat_tree_with " ") [inr 0; inl "name0given"].
+Let json25 := json_modify json24 (concat_tree_with " ") [inr 0; inl "name1given"].
+Eval compute in json25.
+Let json26 := json_destruct json25 [inr 0; inl "telecom"].
+Eval compute in json26.
+
+Let json27 := (json_modify json26 (fun t => let mt1 := tree_getin [inl "system"] t in
+                                                             let mt2 := tree_getin [inl "value"] t in
+                                                             match mt1, mt2 with
+                                                             | Some (tleaf s1), Some (tleaf s2) => 
+                                                                    (tmbranch [(s1, tleaf s2)])
+                                                             | _, _ => t
+                                                             end) [inr 0; inl "telecom0"]).
+Let json28 := (json_modify json27 (fun t => let mt1 := tree_getin [inl "system"] t in
+                                                             let mt2 := tree_getin [inl "value"] t in
+                                                             match mt1, mt2 with
+                                                             | Some (tleaf s1), Some (tleaf s2) => 
+                                                                    (tmbranch [(s1, tleaf s2)])
+                                                             | _, _ => t
+                                                             end) [inr 0; inl "telecom1"]).
+Let json29 := (json_modify json28 (fun t => let mt1 := tree_getin [inl "system"] t in
+                                                             let mt2 := tree_getin [inl "value"] t in
+                                                             match mt1, mt2 with
+                                                             | Some (tleaf s1), Some (tleaf s2) => 
+                                                                    (tmbranch [(s1, tleaf s2)])
+                                                             | _, _ => t
+                                                             end) [inr 0; inl "telecom2"]).
+Let json210 := (json_modify json29 (fun t => let mt1 := tree_getin [inl "system"] t in
+                                                             let mt2 := tree_getin [inl "value"] t in
+                                                             match mt1, mt2 with
+                                                             | Some (tleaf s1), Some (tleaf s2) => 
+                                                                    (tmbranch [(s1, tleaf s2)])
+                                                             | _, _ => t
+                                                             end) [inr 0; inl "telecom3"]).
+Let json211 := (json_destruct json210 [inr 0; inl "telecom0"]).
+Let json212 := (json_destruct json211 [inr 0; inl "telecom1"]).
+Let json213 := (json_destruct json212 [inr 0; inl "telecom2"]).
+Let json214 := (json_destruct json213 [inr 0; inl "telecom3"]).
+Eval compute in json214.
+Let json215 := (json_rename json214 (inr "given1") [inr 0; inl "name0given"]).
+Let json216 := (json_rename json215 (inr "given2") [inr 0; inl "name1given"]).
+Let json217 := (json_rename json216 (inr "family1") [inr 0; inl "name0family"]).
+Let json218 := (json_rename json217 (inr "family2") [inr 0; inl "name1family"]).
+Let json219 := (json_rename json218 (inr "phone1") [inr 0; inl "telecom0phone"]).
+Let json220 := (json_rename json219 (inr "phone2") [inr 0; inl "telecom1phone"]).
+Let json221 := (json_rename json220 (inr "mail1") [inr 0; inl "telecom2mail"]).
+Let json222 := (json_rename json221 (inr "mail2") [inr 0; inl "telecom3mail"]).
+Let json223 := (json_destruct json222 [inr 0; inl "type"]).
+
+Eval compute in json223.
+
+Example mapping1 : json_getin [inr 0] json3 = 
+                   json_getin [inr 0] json223.
+Proof. compute. auto. Qed.
+
+
+Fixpoint split' (s: string) (p: string) n : list string :=
+match n with
+| O => []
+| S n' => 
+if (String.eqb s "") then [] else
+if (String.eqb p "") then (substring 0 1 s)::
+                          (split' (substring 1 ((String.length s) - 1) s) p n') else
+let i := index 0 p s in
+match i with
+| None => [s]
+| Some k => let ss := substring 0 k s in
+            let a  := k + (String.length p) in
+            let s' := substring a ((String.length s) - a) s in
+            ss::(split' s' p n')
+end
+end.
+
+Definition split s p := split' s p (String.length s). 
+
+Eval compute in (split "a.b.c.*" ".").
+Eval compute in (split "aaaa" ".").
+Eval compute in (split "." ".").
+Eval compute in (split "aaaa" "").
+Eval compute in (split ".aaa.a.e." ".").
+
+Print tree.
+
+(*
+  a.b.c. => a -> b -> c
+  a.*.c => a -> b1 -> c
+             -> b2 -> c
+
+*)
+
+
+Definition path_tree (s: string) t : tree jpoint nat :=
+let ls := split s "." in 
+fold_right (fun s l => ) [] ls.
+
+Definition path_parse (s: string) : list jpath :=
+let ls := split s "." in
+
+
+
+Definition do_at_nodes (j: json) (f: jpath -> json -> json) (path: string) : json :=
+let llk := path_parse path in
+fold_right f j llk. 
+
+
+
 (*
 DO_SMTH BY_METHOD WITH_PARAM AT_PATH
 json2 -> json3
 
 REMOVE (by purge) "type" AT ".*" -- all rooted collection
+
+
 -- {"name" # '[{"given" # '[$"Andy"; $"Michael"], "family" # $"Watson"};
                {"given" # '[$"Andrey"], "family" # $"Watsonov"}]}
 
