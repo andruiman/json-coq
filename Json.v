@@ -1027,10 +1027,62 @@ Print tree.
 
 *)
 
+Require Import String Ascii.
+Definition num_of_ascii (c: ascii) : option nat :=
+ match c with
+(* Zero is 0011 0000 *)
+   | Ascii false false false false true true false false => Some 0
+(* One is 0011 0001 *)
+   | Ascii true false false false true true false false => Some 1
+(* Two is 0011 0010 *)
+   | Ascii false true false false true true false false => Some 2
+   | Ascii true true false false true true false false => Some 3
+   | Ascii false false true false true true false false => Some 4
+   | Ascii true false true false true true false false => Some 5
+   | Ascii false true true false true true false false => Some 6
+   | Ascii true true true false true true false false => Some 7
+   | Ascii false false false true true true false false => Some 8
+   | Ascii true false false true true true false false => Some 9
+   | _ => None
+end.
 
-Definition path_tree (s: string) t : tree jpoint nat :=
+Fixpoint string_rev (s : string) : string :=
+ match s with
+ | EmptyString => EmptyString
+ | String c rest => append (string_rev rest) (String c EmptyString)
+end.
+
+Fixpoint num_of_string_rec (s : string) : option nat :=
+  match s with
+    | EmptyString => Some 0
+    | String c rest => 
+       match (num_of_ascii c), (num_of_string_rec rest) with
+          | Some n, Some m => Some (n + 10 * m)
+          | _ , _ => None
+       end
+   end.
+
+Definition num_of_string (s : string) := 
+  num_of_string_rec (string_rev s).
+
+Eval vm_compute in num_of_string "1".
+
+Definition from_string (s: string) : jpoint :=
+if (prefix "#" s) then 
+let mk := num_of_string (substring 1 (String.length s -1) s) in
+match mk with
+| Some k => inr k
+| None => inl s
+end
+else inl s.
+
+Eval compute in (from_string "#4").
+Eval compute in (from_string "#4t").
+Eval compute in (from_string "").
+
+Definition path_tree (s: string) (jt: jtree) : tree jpoint nat :=
 let ls := split s "." in 
-fold_right (fun s l => ) [] ls.
+fold_right (fun s l => tree_getin [from_string s]) [] ls.
 
 Definition path_parse (s: string) : list jpath :=
 let ls := split s "." in
