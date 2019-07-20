@@ -418,6 +418,9 @@ match jt with
                                         end) ""  tm)
 end.
 
+Check split.
+
+
 Example tmodify1: tree_json (tree_modify [inr 0; inl "foo"]
                   (json_tree ('[{"foo" # '[$"Andy"; $"Peter"]}; 
                     {"bar" # $"Good"};
@@ -841,13 +844,15 @@ Let json2 := '[{"type" # $"person",
                 "telecom" # '[{"system" # $"phone", "value" # $"1234"};
                               {"system" # $"phone", "value" # $"5678"};
                               {"system" # $"mail", "value" # $"andy@watson.me"};
-                              {"system" # $"mail", "value" # $"andrey@mail.ru"}]};
+                              {"system" # $"mail", "value" # $"andrey@mail.ru"}]
+                 };
                 {"type" # $"person",
                 "name" # '[{"given" # '[$"John"; $"Israel"], "family" # $"Koen"};
                             {"given" # '[$"Ivan"], "family" # $"Koinov"}],
                 "telecom" # '[{"system" # $"phone", "value" # $"4321"};
                               {"system" # $"phone", "value" # $"8765"};
-                              {"system" # $"mail", "value" # $"john@koen.me"}]}].
+                              {"system" # $"mail", "value" # $"john@koen.me"}]
+                }].
 
 Let json3 := '[{"given1" # $"Andy Michael", "family1" # $"Watson",
                 "given2" # $"Andrey", "family2" #  $"Watsonov",
@@ -920,7 +925,7 @@ match minds with
                                        let tb'' := jtable_set tb' m n None in
                                        table_json_default (clear_node_index jr) tb'' j
                            | Some ilt, Some ilf, Some (tmbranch _)  => 
-                                       let ilt' := merge_inds ilt ilf (IndRightMergeToKey (append slast)) true in
+                                       let ilt' := merge_inds ilt ilf (IndRightMergeToKey (fun k => (append (append slast "-") k))) true in
                                        let tb' := replace m tb ilt' in
                                        let tb'' := jtable_set tb' m n None in
                                        table_json_default (clear_node_index jr) tb'' j
@@ -955,30 +960,38 @@ Let tree2 := json_tree json2.
 Let tb22 := jtree_table tree2.
 Let tab2 := snd tb22.
 
-Fixpoint split' (s: string) (p: string) n : list string :=
+Fixpoint split_string' (s: string) (p: string) n : list string :=
 match n with
 | O => []
 | S n' => 
 if (string_dec s "") then [] else
 if (string_dec p "") then (substring 0 1 s)::
-                          (split' (substring 1 ((String.length s) - 1) s) p n') else
+                          (split_string' (substring 1 ((String.length s) - 1) s) p n') else
 let i := index 0 p s in
 match i with
 | None => [s]
 | Some k => let ss := substring 0 k s in
             let a  := k + (String.length p) in
             let s' := substring a ((String.length s) - a) s in
-            ss::(split' s' p n')
+            ss::(split_string' s' p n')
 end
 end.
 
-Definition split s p := split' s p (String.length s). 
+Definition split_string s p := split_string' s p (String.length s). 
 
-Eval compute in (split "a.b.c.*" ".").
-Eval compute in (split "aaaa" ".").
-Eval compute in (split "." ".").
-Eval compute in (split "aaaa" "").
-Eval compute in (split ".aaa.a.e." ".").
+
+Definition split_tree_with (d: data) (jt: jtree): jtree :=
+match jt with
+| tleaf s => let ss := split_string s d in
+             tlbranch (indexate (map (@tleaf data key) ss))
+| _ => jt (* FIXME *)
+end.
+
+Eval compute in (split_string "a.b.c.*" ".").
+Eval compute in (split_string "aaaa" ".").
+Eval compute in (split_string "." ".").
+Eval compute in (split_string "aaaa" "").
+Eval compute in (split_string ".aaa.a.e." ".").
 
 Require Import String Ascii.
 Definition num_of_ascii (c: ascii) : option nat :=
@@ -1134,7 +1147,7 @@ match mt with
 end.
 
 Definition path_parse (s: string) (root: jpath) jt : list jpath :=
-let ls := split s "." in
+let ls := split_string s "." in
 path_tree (rev ls) root jt.
 
 Definition do_at_nodes (j: json) (f: jpath -> json -> json) (path: string) : json :=
@@ -1146,8 +1159,8 @@ Eval compute in (path_parse "*.name" [] tree2).
 
 Let json21' := do_at_nodes json2 json_destruct "*.name".
 Eval compute in json21'.
-Eval compute in (json_getin [inr 0; inl "name0"] json21').
-Eval compute in (json_getin [inr 0; inl "name1"] json21').
+Eval compute in (json_getin [inr 0; inl "name-0"] json21').
+Eval compute in (json_getin [inr 0; inl "name-1"] json21').
 Let json22' := do_at_nodes json21' json_destruct "*.name*".
 Eval compute in json22'.
 Let json23' := do_at_nodes json22' (json_modify (concat_tree_with " ")) "*.name*given".
@@ -1164,29 +1177,18 @@ Let json25' := do_at_nodes json24' (json_modify (fun t => let mt1 := tree_getin 
 Eval compute in json25'.
 Let json26' := do_at_nodes json25' json_destruct "*.telecom*".
 Eval compute in json26'.
-Let json27' := do_at_nodes json26' (json_rename (inr "given1")) "*.name0given".
-Let json28' := do_at_nodes json27' (json_rename (inr "given2")) "*.name1given".
-Let json29' := do_at_nodes json28' (json_rename (inr "family1")) "*.name0family".
-Let json210' := do_at_nodes json29' (json_rename (inr "family2")) "*.name1family".
-Let json211' := do_at_nodes json210' (json_rename (inr "phone1")) "*.telecom0phone".
-Let json212' := do_at_nodes json211' (json_rename (inr "phone2")) "*.telecom1phone".
-Let json213' := do_at_nodes json212' (json_rename (inr "mail1")) "*.telecom2mail".
-Let json214' := do_at_nodes json213' (json_rename (inr "mail2")) "*.telecom3mail".
+Let json27' := do_at_nodes json26' (json_rename (inr "given1")) "*.name-0-given".
+Let json28' := do_at_nodes json27' (json_rename (inr "given2")) "*.name-1-given".
+Let json29' := do_at_nodes json28' (json_rename (inr "family1")) "*.name-0-family".
+Let json210' := do_at_nodes json29' (json_rename (inr "family2")) "*.name-1-family".
+Let json211' := do_at_nodes json210' (json_rename (inr "phone1")) "*.telecom-0-phone".
+Let json212' := do_at_nodes json211' (json_rename (inr "phone2")) "*.telecom-1-phone".
+Let json213' := do_at_nodes json212' (json_rename (inr "mail1")) "*.telecom-2-mail".
+Let json214' := do_at_nodes json213' (json_rename (inr "mail2")) "*.telecom-3-mail".
 Let json215' := do_at_nodes json214' json_destruct "*.type".
 
 Example mapping1 : json3 = json215'.
 Proof. compute. auto. Qed.
-
-Let json31' := do_at_nodes json3 (json_rename (inr "name-given-1")) "*.given1".
-Let json32' := do_at_nodes json31' (json_rename (inr "name-given-2")) "*.given2".
-Let json33' := do_at_nodes json32' (json_rename (inr "name-family-1")) "*.family1".
-Let json34' := do_at_nodes json33' (json_rename (inr "name-family-2")) "*.family2".
-Let json35' := do_at_nodes json34' (json_rename (inr "telecom-phone-1")) "*.phone1".
-Let json36' := do_at_nodes json35' (json_rename (inr "telecom-phone-2")) "*.phone2".
-Let json37' := do_at_nodes json36' (json_rename (inr "telecom-mail-1")) "*.mail1".
-Let json38' := do_at_nodes json37' (json_rename (inr "telecom-mail-2")) "*.mail2".
-
-Eval compute in json38'.
 
 (*CREATE AT "*.telecom"*)
 Definition json_create (s: string) (lk: jpath) (j: json) : json :=
@@ -1250,19 +1252,133 @@ match p with
 | inl k => k
 end.
 
-Let json39' := do_at_nodes json38' (json_create "'telecom") "*".
-Eval compute in json39'.
-Let json310' := do_at_nodes json39' (json_collect "telecom*" "'telecom" (fun lk jt => let l := last lk (inl "error") in
+Check nth.
+
+Definition map_tree_with_old (ks: list key) (jt: jtree) : jtree :=
+match jt with
+| tleaf _ => jt
+| tlbranch tl => tlbranch (indexate (map (fun (ks:nat*key) => let (k,s):=ks in 
+                                let txs := filterSome (map (tree_get (inr k)) (map snd tl)) in
+                                tmbranch [(s, tlbranch txs)] ) (indexate ks)))
+| _ => jt
+end.
+
+(*
+(("name") # (' [' [' [$ "Andy"; $ "Michael"]; $ "Watson"];
+                ' [' [$ "Andrey"]; $ "Watsonov"]])
+*)
+Fixpoint zip_first_with {X Y T} (ks: list X) (lxy: list (T*Y)) d (f: T->X): list (X*Y) :=
+match ks, lxy with
+| [], _ => map (fun (ky:T*Y) => let (k,y):= ky in (f k,y)) lxy
+| _, [] => map (fun k => (k,d)) ks
+| k::kss, (x,y)::lxys => (k,y)::(zip_first_with kss lxys d  f)
+end.
+
+
+Definition zip_tree_with (ks: list key) (jt: jtree) : jtree :=
+match jt with
+| tleaf _ => jt
+| tlbranch tl => tmbranch (zip_first_with ks tl (tlbranch []) indexNat)
+| tmbranch tm => tmbranch (zip_first_with ks tm (tlbranch []) (@id key))
+end.
+
+Definition map_tree_with (ks: list key) (jt: jtree) : jtree :=
+match jt with
+| tleaf _ => jt
+| tlbranch tl => tlbranch (map (fun (kt:nat*jtree) => let (k,t) := kt in  
+                                          (k, zip_tree_with ks t)) tl)
+| tmbranch tm => tmbranch (map (fun (kt:key*jtree) => let (k,t) := kt in  
+                                          (k, zip_tree_with ks t)) tm)
+end.
+
+
+Fixpoint ziplists' {X} (ll : list (list X))  (l: list X) :=
+match ll, l with
+| _, [] => ll
+| [], x::xs => map (fun x => [x]) l
+| lx::lxs, x::xs => (app lx [x])::(ziplists' lxs xs)
+end.
+
+Eval compute in (ziplists' [[1;2]; [3;4]] [5;6;7;8]).
+Eval compute in (ziplists' [] [5;6;7;8]).
+
+Definition ziplists {X} (ll : list (list X)) :=
+ fold_left ziplists' ll [].
+ 
+Eval compute in (ziplists [[1;2]; [3;4]; [5;6;7;8]]).
+Fixpoint ziptrees' (ll : list jtree)  (l: jtree) :=
+match ll, l with
+| _, tlbranch [] => ll
+| [], tlbranch ((_::_) as l) => map (fun x => tlbranch [x]) l
+| (tlbranch lx)::lxs, tlbranch (x::xs) => (tlbranch (app lx [x]))::(ziptrees' lxs (tlbranch xs))
+| _,_ => ll
+end.
+
+Definition json_zip_at (ks: list string) (root: jpath) (j: json) :=
+let jt := json_tree j in
+let llkf := flatten (map (fun s => path_parse s root jt) ks) in
+let trees := filterSome (map (fun p => tree_getin p jt) llkf) in 
+let jt' := tree_setin root jt (tlbranch (indexate (fold_left ziptrees' trees []))) in
+let mj' := tree_json jt' in
+match mj' with
+| None => j
+| Some j' => j'
+end.
+
+
+Let json31' := do_at_nodes json3 (json_create "type") "*".
+Let json32' := do_at_nodes json31' (json_modify (fun _ => tleaf "person")) "*.type".
+Eval compute in json32'.
+
+Let json33' := do_at_nodes json32' (json_rename (inr "name-0-given")) "*.given1".
+Let json34' := do_at_nodes json33' (json_rename (inr "name-1-given")) "*.given2".
+Let json35' := do_at_nodes json34' (json_rename (inr "name-0-family")) "*.family1".
+Let json36' := do_at_nodes json35' (json_rename (inr "name-1-family")) "*.family2".
+Let json37' := do_at_nodes json36' (json_rename (inr "telecom-0-phone")) "*.phone1".
+Let json38' := do_at_nodes json37' (json_rename (inr "telecom-1-phone")) "*.phone2".
+Let json39' := do_at_nodes json38' (json_rename (inr "telecom-2-mail")) "*.mail1".
+Let json310' := do_at_nodes json39' (json_rename (inr "telecom-3-mail")) "*.mail2".
+
+Let json311' := do_at_nodes json310' (json_modify (split_tree_with " ")) "*.name*given".
+Eval compute in json311'.
+Let json312' := do_at_nodes json311' (json_create "'name-given") "*".
+Let json313' := do_at_nodes json312' (json_collect "name*given" "'name-given" (fun lk jt => tlbranch [(0, jt)])) "*".
+Eval compute in json313'.
+Let json314' := do_at_nodes json313' (json_create "'name-family") "*".
+Let json315' := do_at_nodes json314' (json_collect "name*family" "'name-family" (fun lk jt => tlbranch [(0, jt)])) "*".
+Eval compute in json315'.
+Let json316' := do_at_nodes json315' json_remove "*.name*".
+Eval compute in json316'.
+Let json317' := do_at_nodes json316' (json_create "name") "*".
+Let json318' := do_at_nodes json317' (json_collect "'name*" "name" (fun lk jt => let l := last lk (inl "error") in
+                                                                                 let sl := writeJPoint l in
+                                                                                 let sl' := split_string sl "-" in
+                                                                                 let sl'' := nth 1 sl' "error" in
+                                                                    tmbranch [(sl'', jt)])) "*".
+Eval compute in json318'.
+Let json319' := do_at_nodes json318' json_remove "*.'name*".
+Eval compute in json311'.
+Let json320' := do_at_nodes json319' (json_zip_at ["given"; "family"]) "*.name".
+Eval compute in json320'.
+Let json321' := do_at_nodes json320' (json_modify (map_tree_with ["given"; "family"])) "*.name".
+Eval compute in json321'.
+
+Let json322' := do_at_nodes json321' (json_create "'telecom") "*".
+Let json323' := do_at_nodes json322' (json_collect "telecom*" "'telecom" (fun lk jt => let l := last lk (inl "error") in
                                                                                       let sl := writeJPoint l in
-                                                                                      let sl' := split sl "-" in
-                                                                                      let sl'' := nth 1 sl' "error" in
+                                                                                      let sl' := split_string sl "-" in
+                                                                                      let sl'' := last sl' "error" in
                                                                         tlbranch [(0, tmbranch [("system", tleaf sl''); 
                                                                                   ("value", jt)])])) "*".
-Eval compute in json310'.
-Let json311' := do_at_nodes json310' json_remove "*.telecom*".
-Eval compute in json311'.
-Let json312' := do_at_nodes json311' (json_rename (inr "telecom")) "*.'telecom".
-Eval compute in json312'.
+Eval compute in json323'.
+Let json324' := do_at_nodes json323' json_remove "*.telecom*".
+Eval compute in json324'.
+Let json325' := do_at_nodes json324' (json_rename (inr "telecom")) "*.'telecom".
+Eval compute in json325'.
+
+Example mapping2 : json2 = 
+                   json325'.
+Proof. compute. auto. Qed.
 (*
 DO_SMTH BY_METHOD WITH_PARAM AT_PATH
 json2 -> json3
