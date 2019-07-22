@@ -1,4 +1,4 @@
-![Alt text](https://g.gravizo.com/source/custom_mark10?https%3A%2F%2Fraw.githubusercontent.com%2Fandruiman%2Fjson-coq%2Fmaster%2Fjson-mapping.md)
+![Alt text](https://g.gravizo.com/source/custom_mark10?https%3A%2F%2Fcdn.rawgit.com%2Fandruiman%2Fjson-coq%2Fmaster%2Fjson-mapping.md)
 <details> 
 <summary></summary>
 custom_mark10
