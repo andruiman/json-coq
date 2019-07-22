@@ -1,5 +1,5 @@
-<img alt="" src="https://g.gravizo.com/g?
- digraph G {
+<img src='https://g.gravizo.com/svg?
+digraph G {
    main -> parse -> execute;
    main -> init;
    main -> cleanup;
@@ -8,4 +8,5 @@
    init -> make_string;
    main -> printf;
    execute -> compare;
- }" />
+ }
+'>
