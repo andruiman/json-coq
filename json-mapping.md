@@ -1,9 +1,9 @@
 # Brief introduction
 
 The json manipulation algorithms are presented below. The task seems one of the important 
-when representing data in different schemes for systems which work with the data but in different formats.
-The bidirectional approach is used that is when we need to support the mapping from side to side and opposite
-on instant way. 
+when representing data in different schemes for systems which work with the same data but in different formats.
+The bidirectional approach is used that is when we need to support the mapping from one side to another and back 
+instantly.
 
 # Json scheme
 
@@ -23,11 +23,15 @@ That in particular means that in the following example
 ``` 
 `foo` still stands for scheme, `'bar'` has became the part of scheme also,  and `'baz'` is now data.
 
-The scheme transformation is a procedure which produces one `json` file from another (and possibly back) saving
-some data. Within the next explanations we will try to transform different data representations (schemas) saving 
-as much data possible and making the transformations bidirectional. So tha mapping is 
-``` f :: [scheme1, data] <-> [scheme2, data]```
-
+The scheme transformation is a procedure which produces one `json` file or memory structure from another (and possibly back) saving some data. Within the next explanations we will try to transform different data representations (schemas) saving 
+as much data as possible and making the transformations bidirectional. So the mapping is abstracting as follows
+``` f :: [scheme1, data1] <-> [scheme2, data2]```
+Then we assume that the data is the same ```data1=data2```. Because we don't care about real binary data storage we mean that business pieces of information extracted from both data are equal and further omit this simply writing equality on data.
+For example we assume that in the following jsons the data are equal:
+```json
+j1={phone: '1234'}
+js={system : phone; value :'1234'}
+```
 
 ![Alt text](https://g.gravizo.com/source/custom_mark10?https%3A%2F%2Fraw.githubusercontent.com%2Fandruiman%2Fjson%2Dcoq%2Fmaster%2Fjson%2Dmapping.md)
 <details> 
