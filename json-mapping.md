@@ -5,7 +5,7 @@ when representing data in different schemes for systems which work with the same
 The bidirectional approach is used that is when we need to support the mapping from one side to another and back 
 instantly.
 
-# Json scheme
+# Json scheme and data
 
 We use the following definitions, however they can differ in other sources. To investigate the possible
 transformations we mean that (yet in non formal way):
@@ -13,25 +13,49 @@ transformations we mean that (yet in non formal way):
 * data is something changeable.
 
 That in particular means that in the following example 
-```json 
+```jsonc 
 {foo : 'bar'}
 ``` 
 `foo` stands for scheme and `'bar'` is data. Going further we see that in the following example
 
-```json 
+```jsonc 
 {foo : {bar : 'baz'}}
 ``` 
 `foo` still stands for scheme, `'bar'` has became the part of scheme also,  and `'baz'` is now data.
 
 The scheme transformation is a procedure which produces one `json` file or memory structure from another (and possibly back) saving some data. Within the next explanations we will try to transform different data representations (schemas) saving 
-as much data as possible and making the transformations bidirectional. So the mapping is abstracting as follows
+as much data as possible and making the transformations bidirectional. So the mapping is being abstracted as follows
 ``` f :: [scheme1, data1] <-> [scheme2, data2]```
 Then we assume that the data is the same ```data1=data2```. Because we don't care about real binary data storage we mean that business pieces of information extracted from both data are equal and further omit this simply writing equality on data.
 For example we assume that in the following jsons the data are equal:
-```json
+```jsonc
 j1={phone: '1234'}
-js={system : phone; value :'1234'}
+j2={system : 'phone'; value :'1234'}
 ```
+What do we mean here? Actually we mean literally that there is no need for any addidtional knowledge to convert
+```j1<->j2``` in both directions and the behaviour of our system will be the same on both input
+```j2``` and ```f (j1)```. Look next
+```
+j3={system : 'phone'; value :'1234'; type: 'contact'}
+```
+And here let's suggest that we also want to have ```data3=data1```. That means the additional input ```{type: 'contact'}```
+is constant and doesn't depend on other data. However this fact cannot be learned from the input ```j1```. There is
+no information about the fact that we map contact there. So the fact about possiblity to transform `j1` to `j3` cannot be deduced just looking at data - we need to postulate it. 
+
+So finally we define the mapping as follows
+``` 
+f12 :: [env1, scheme1, data1] -> [scheme2, data2]
+f21 :: [env2, scheme2, data2] -> [scheme1, data1]
+```
+where environment arguments are implicit and means "we know what we map". The environment is usually referred as 'context' and it is of external nature.
+
+Further we will suggest that it is given and will denote it as universal for both directions - just 'context' when needed but in most cases will omit it.
+
+# Bidirectional transformations
+
+Having two transformations `f12` and `f21` we need to get assured that the transformations are performed correctly
+which means that functions `f12` and `f21` are inverse to each other so `f12 . f21 = Id`
+
 
 ![Alt text](https://g.gravizo.com/source/custom_mark10?https%3A%2F%2Fraw.githubusercontent.com%2Fandruiman%2Fjson%2Dcoq%2Fmaster%2Fjson%2Dmapping.md)
 <details> 
