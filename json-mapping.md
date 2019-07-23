@@ -107,25 +107,16 @@ tree = empty :: tree | leaf :: node -> tree | branch :: [(key, tree)]
 which is the tree with nodes of `node` type and links of `key` type. Our example can be shown as the
 following tree:
 
-![Alt text](https://g.gravizo.com/source/custom_mark10?https%3A%2F%2Fraw.githubusercontent.com%2Fandruiman%2Fjson%2Dcoq%2Fmaster%2Fjson%2Dmapping.md)
+![Alt text](https://g.gravizo.com/source/tree1?https%3A%2F%2Fraw.githubusercontent.com%2Fandruiman%2Fjson%2Dcoq%2Fmaster%2Fjson%2Dmapping.md)
 <details> 
 <summary></summary>
 tree1
   digraph G {
     size ="4,4";
-    root [shape=box];
-    root -> root [weight=8, label="a"];
-    root -> b [weight=8];
-    a -> ;
-    main -> init [style=dotted];
-    main -> cleanup;
-    execute -> { make_string; printf};
-    init -> make_string;
-    edge [color=red];
-    main -> printf [style=bold,label="101 times"];
-    make_string [label="make a string"];
-    node [shape=box,style=filled,color=".7 .3 1.0"];
-    execute -> compare;
+    root 0 [shape=box];
+    root 0 -> root 1 [weight=8, label="a"];
+    root 0 -> root 2 [weight=8, label="b"];
+    root 1 -> "a.aa" [label = "aa"]
   }
 tree1
 </details>
