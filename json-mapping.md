@@ -207,6 +207,9 @@ json -> series of [internal structure (our or language specific) -> transformati
 
 ## Zipping
 
+# DSL for json manipulation
+
+# Further plans and notes
 
 
 ![Alt text](https://g.gravizo.com/source/custom_mark10?https%3A%2F%2Fraw.githubusercontent.com%2Fandruiman%2Fjson%2Dcoq%2Fmaster%2Fjson%2Dmapping.md)
