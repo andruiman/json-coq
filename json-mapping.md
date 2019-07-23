@@ -116,14 +116,14 @@ tree1
     "root 0" [shape=box];
     "root 1" [shape=box];
     "root 2" [shape=box];
-    "root 6" [shape=box];
     "root 0" -> "root 1" [label="a"];
     "root 0" -> "root 2" [label="b"];
     "root 1" -> "data 3 \"a.aa\"" [label = "aa"];
-    "root 2" -> "data 4 b.bb" [label = "bb"];
-    "root 2" -> "data 5 b.cc" [label = "cc"];
+    "root 2" -> "data 4 \"b.bb\"" [label = "bb"];
+    "root 2" -> "data 5 \"b.cc\"" [label = "cc"];
+    "root 6" [shape=box];
     "root 2" -> "root 6" [label = "dd"];
-    "root 6" -> "data 7 b.dd.aaa" [label = "aaa"]
+    "root 6" -> "data 7 \"b.dd.aaa\"" [label = "aaa"]
   }
 tree1
 </details>
@@ -135,14 +135,14 @@ node = root_node :: Integer -> node | data_node :: Integer -> data -> node.
 We enumerate the nodes for further purposes. The above given internal representation we will call 'tree'.
 
 Now we can see that actually the connections are always made between some nodes, and are labeled with some key.
-What if we store them separately.
+What if we store them separately?
 
 ## Tables
 
 The idea to store the nodes and links separately leads us to the following representation, which can be named 
 'sparse tables'. This approach suggests storing nodes as a list like `[node]` and links as a square
 table of type `Maybe key`. The presense of key (having the `Just k` in the intersection) inside the table 
-at position `(m,n)` means that the link exists between node `m` and `n`. Having `Nothing` merely means there is 
+at position `(m,n)` means that the link exists between nodes `m` and `n`. Having `Nothing` merely means there is 
 no link. To show our toy data we accumulate the node as 
 ```haskell
 nodes = [root 0, root 1, root 2, data 3 "a.aa", data 4 "b.bb", data 5 "b.cc", root 6, data 7 "b.dd.aaa"]
@@ -168,13 +168,43 @@ and number of cells is squared number of nodes. The useful properties of the tab
 * There is no any link (the row is empty) for `data` nodes;
 * There is no any link before the diagonal (the node cannot link to the previously numbered element, if we build numbers correctly).
 And where the first properties is strict (it is the fact from correctness), the second one is flexible - one can organize
-the table with other indices - and the table will be still correct. From the opposite any correct table can always be presented in a such way - that is topological order of tree when the parents go before children.
+the table with other indices - and the table will be still correct. From the opposite side any correct table can always be presented in a such way - that is just of the topological order of tree when the parents go before children.
 
-We do not consider the optimization of the table formalism, some of them are however easy to perform. 
+We do not consider the optimizations of the table formalism, some of them are however easy to perform. 
 
 ### Why do we need additional internal representation
 
+Mainly for two reasons:
+* Abstraction. This gives us to present transformations of structures having their "algebra" in mind, which allows to think of categories like "all possible" transformations or "transformations keeping some invariant" etc.
+* Performance. It is not obvious but understandable it should be a case when transforming the internal representation can be faster than the analogous transformation of the final `json`. It is also clear that each programming language libraries have 
+an internal representation of structures like `json`. But we do not always know if it is good for us.
 
+So to perform the series of transformations we do
+```haskell
+json -> internal structure -> series of transformations -> json
+```
+but not the
+```haskell
+json -> series of [internal structure (our or language specific) -> transformation -> json] -> final json
+```
+
+# More rich toy data
+
+# Types of transformations
+
+## Creation
+
+## Renaming
+
+## Modification
+
+## Merging
+
+## Destructing and removing
+
+## Collecting
+
+## Zipping
 
 
 
