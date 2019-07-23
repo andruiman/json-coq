@@ -31,14 +31,14 @@ f :: [scheme1, data1] <-> [scheme2, data2].
 Then we assume that the data is the same ```data1=data2```. Because we don't care about real binary data storage we mean that business pieces of information extracted from both data are equal and further omit this simply writing equality on data.
 For example we assume that in the following jsons the data are equal:
 ```jsonc
-j1={phone: '1234'}
-j2={system : 'phone'; value :'1234'}
+j1 = {phone: '1234'}
+j2 = {system : 'phone'; value :'1234'}
 ```
 What do we mean here? Actually we mean literally that there is no need for any addidtional knowledge to convert
 `j1<->j2` in both directions and the behaviour of our system will be the same on both input
 `j2` and `f (j1)`. Look next
 ```jsonc
-j3={system : 'phone'; value :'1234'; type: 'contact'}
+j3 = {system : 'phone'; value :'1234'; type: 'contact'}
 ```
 And here let's suggest that we also want to have ```data3=data1```. That means the additional input ```{type: 'contact'}```
 is constant and doesn't depend on other data. However this fact cannot be learned from the input ```j1```. There is
@@ -60,7 +60,7 @@ what means that functions `f12` and `f21` are inverse to each other so `f12 . f2
 functional composition.
 
 Speaking business language, bidirectional transformation means that we do not loose data and do not add any additional data
-when transforming besides the context which always assumed as implicit parameter of all mappings (recall "we know what we map" (KWP)).
+when transforming besides the context which always assumed as implicit parameter of all mappings (recall "we know what we map" (KWM)).
 
 What does it mean in practice we'll see in the next paragraphs along with the potential tricks and traps.
 
@@ -102,7 +102,7 @@ However it contains some redundant repetitions of keys for data stored within th
 
 One can observe easily that the same data structure we can represent by typing it by tree
 ```haskell
-tree = empty :: tree | leaf :: node -> tree | branch :: [(key, tree)] 
+tree = empty :: tree | leaf :: node -> tree | branch :: [(key, tree)] -> tree
 ```
 which is the tree with nodes of `node` type and links of `key` type. Our example can be shown as the
 following tree:
@@ -170,6 +170,9 @@ and number of cells is squared number of nodes. The useful properties of the tab
 And where the first properties is strict (it is the fact from correctness), the second one is flexible - one can organize
 the table with other indices - and the table will be still correct. From the opposite any correct table can always be presented in a such way - that is topological order of tree when the parents go before children.
 
+We do not consider the optimization of the table formalism, some of them are however easy to perform. 
+
+### Why do we need additional internal representation
 
 
 
