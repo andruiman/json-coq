@@ -112,7 +112,7 @@ following tree:
 <summary></summary>
 tree1
   digraph G {
-    size ="4,4";
+    size ="6,6";
     "root 0" [shape=box];
     "root 1" [shape=box];
     "root 2" [shape=box];
