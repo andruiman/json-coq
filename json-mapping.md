@@ -166,7 +166,8 @@ The table is very sparse, because number of links is not more number of nodes (u
 than one link to a node) (actually the number of links is 1 less than number of nodes in a fully connected tree), 
 and number of cells is squared number of nodes. The useful properties of the table are
 * There is no any link (the row is empty) for `data` nodes;
-* There is no any link before the diagonal (the node cannot link to the previously numbered element, if we build numbers correctly).
+* There is no any link before the diagonal (the node cannot link to the previously numbered element, if we build numbers correctly);
+* There is only one non-nothing element in a column, except the first one, which is all empty.
 And where the first properties is strict (it is the fact from correctness), the second one is flexible - one can organize
 the table with other indices - and the table will be still correct. From the opposite side any correct table can always be presented in a such way - that is just of the topological order of tree when the parents go before children.
 
