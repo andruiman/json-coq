@@ -114,12 +114,12 @@ tree1
   digraph G {
     size ="4,4";
     root_0 [shape=box];
-    root_0 -> root_1 [weight=8, label="a"];
-    root_0 -> root_2 [weight=8, label="b"];
+    root_0 -> root_1 [shape=box, label="a"];
+    root_0 -> root_2 [shape=box, label="b"];
     root_1 -> "a.aa" [label = "aa"];
     root_2 -> "b.bb" [label = "bb"];
     root_2 -> "b.cc" [label = "cc"];
-    root_2 -> root_3 [label = "dd"];
+    root_2 -> root_3 [shape=box, label = "dd"];
     root_3 -> "b.dd.aaa" [label = "aaa"]
   }
 tree1
