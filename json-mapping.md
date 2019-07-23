@@ -116,11 +116,11 @@ tree1
     root_0 [shape=box];
     root_0 -> root_1 [weight=8, label="a"];
     root_0 -> root_2 [weight=8, label="b"];
-    root_1 -> data_"a.aa" [label = "aa"];
-    root_2 -> data_"b.bb" [label = "bb"];
-    root_2 -> data_"b.cc" [label = "cc"];
+    root_1 -> "a.aa" [label = "aa"];
+    root_2 -> "b.bb" [label = "bb"];
+    root_2 -> "b.cc" [label = "cc"];
     root_2 -> root_3 [label = "dd"];
-    root_3 -> data_"b.dd.aaa" [label = "aaa"]
+    root_3 -> "b.dd.aaa" [label = "aaa"]
   }
 tree1
 </details>
