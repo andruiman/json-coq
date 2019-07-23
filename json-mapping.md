@@ -115,12 +115,12 @@ tree1
     size ="4,4";
     "root 0" [shape=box];
     "root 0" -> "root 1" [shape=box, label="a"];
-    root_0 -> root_2 [shape=box, label="b"];
-    root_1 -> "data 3 a.aa" [label = "aa"];
-    root_2 -> "data 4 b.bb" [label = "bb"];
-    root_2 -> "data 5 b.cc" [label = "cc"];
-    root_2 -> root_6 [shape=box, label = "dd"];
-    root_3 -> "b.dd.aaa" [label = "aaa"]
+    "root 0" -> "root 2" [shape=box, label="b"];
+    "root 1" -> "data 3 a.aa" [label = "aa"];
+    "root 2" -> "data 4 b.bb" [label = "bb"];
+    "root 2" -> "data 5 b.cc" [label = "cc"];
+    "root 2" -> "root 6" [shape=box, label = "dd"];
+    "root 6" -> "data 7 b.dd.aaa" [label = "aaa"]
   }
 tree1
 </details>
