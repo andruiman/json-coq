@@ -114,12 +114,15 @@ tree1
   digraph G {
     size ="4,4";
     "root 0" [shape=box];
-    "root 0" -> "root 1" [shape=box, label="a"];
-    "root 0" -> "root 2" [shape=box, label="b"];
+    "root 1" [shape=box];
+    "root 2" [shape=box];
+    "root 6" [shape=box];
+    "root 0" -> "root 1" [label="a"];
+    "root 0" -> "root 2" [label="b"];
     "root 1" -> "data 3 a.aa" [label = "aa"];
     "root 2" -> "data 4 b.bb" [label = "bb"];
     "root 2" -> "data 5 b.cc" [label = "cc"];
-    "root 2" -> "root 6" [shape=box, label = "dd"];
+    "root 2" -> "root 6" [label = "dd"];
     "root 6" -> "data 7 b.dd.aaa" [label = "aaa"]
   }
 tree1
@@ -127,9 +130,9 @@ tree1
 
 The `node` type represents `root` or `data`:
 ```haskell
-node = root_node :: Integer -> node | data_node :: data -> node.
+node = root_node :: Integer -> node | data_node :: Integer -> data -> node.
 ``` 
-We enumerate the roots for further purposes.
+We enumerate the nodes for further purposes.
 
 
 
