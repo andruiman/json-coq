@@ -113,14 +113,14 @@ following tree:
 tree1
   digraph G {
     size ="4,4";
-    root 0 [shape=box];
-    root 0 -> root 1 [weight=8, label="a"];
-    root 0 -> root 2 [weight=8, label="b"];
-    root 1 -> data "a.aa" [label = "aa"];
-    root 2 -> data "b.bb" [label = "bb"];
-    root 2 -> data "b.cc" [label = "cc"];
-    root 2 -> root 3 [label = "dd"];
-    root 3 -> data "b.dd.aaa" [label = "aaa"]
+    root_0 [shape=box];
+    root_0 -> root_1 [weight=8, label="a"];
+    root_0 -> root_2 [weight=8, label="b"];
+    root_1 -> data_"a.aa" [label = "aa"];
+    root_2 -> data_"b.bb" [label = "bb"];
+    root_2 -> data_"b.cc" [label = "cc"];
+    root_2 -> root_3 [label = "dd"];
+    root_3 -> data_"b.dd.aaa" [label = "aaa"]
   }
 tree1
 </details>
