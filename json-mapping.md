@@ -113,17 +113,25 @@ following tree:
 tree1
   digraph G {
     size ="4,4";
-    root_0 [shape=box];
-    root_0 -> root_1 [shape=box, label="a"];
+    "root 0" [shape=box];
+    "root 0" -> "root 1" [shape=box, label="a"];
     root_0 -> root_2 [shape=box, label="b"];
-    root_1 -> "a.aa" [label = "aa"];
-    root_2 -> "b.bb" [label = "bb"];
-    root_2 -> "b.cc" [label = "cc"];
-    root_2 -> root_3 [shape=box, label = "dd"];
+    root_1 -> "data 3 a.aa" [label = "aa"];
+    root_2 -> "data 4 b.bb" [label = "bb"];
+    root_2 -> "data 5 b.cc" [label = "cc"];
+    root_2 -> root_6 [shape=box, label = "dd"];
     root_3 -> "b.dd.aaa" [label = "aaa"]
   }
 tree1
 </details>
+
+The `node` type represents `root` or `data`:
+```haskell
+node = root_node :: Integer -> node | data_node :: data -> node.
+``` 
+We enumerate the roots for further purposes.
+
+
 
 
 ![Alt text](https://g.gravizo.com/source/custom_mark10?https%3A%2F%2Fraw.githubusercontent.com%2Fandruiman%2Fjson%2Dcoq%2Fmaster%2Fjson%2Dmapping.md)
