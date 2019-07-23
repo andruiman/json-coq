@@ -21,7 +21,7 @@ That in particular means that in the following example
 ```jsonc 
 {foo : {bar : 'baz'}}
 ``` 
-`foo` still stands for scheme, `'bar'` has became the part of scheme also,  and `'baz'` is now data.
+`foo` still stands for scheme, `'bar'` has become the part of scheme also,  and `'baz'` is now data.
 
 The scheme transformation is a procedure which produces one `json` file or memory structure from another (and possibly back) saving some data. Within the next explanations we will try to transform different data representations (schemas) saving 
 as much data as possible and making the transformations bidirectional. So the mapping is being abstracted as follows
@@ -45,7 +45,7 @@ is constant and doesn't depend on other data. However this fact cannot be learne
 no information about the fact that we map contact there. So the fact about possiblity to transform `j1` to `j3` cannot be deduced just looking at data - we need to postulate it. 
 
 So finally we define the mapping as follows
-```jsonc
+```haskell
 f12 :: [env1, scheme1, data1] -> [scheme2, data2]
 f21 :: [env2, scheme2, data2] -> [scheme1, data1]
 ```
@@ -66,7 +66,69 @@ What does it mean in practice we'll see in the next paragraphs along with the po
 
 Please note that one directional mapping can always be referred as 'projection'. Why? Actually we cannot project one integer to another, the term 'projection' means that we have some structure on the left side of projection and some structure on the right one. The projections means that the corresponding structures are "similar". In our case the structure is inherited from the json scheme.
 
-So, we will try to build more or less generic bidirectional mapping, saving the structure, that is two projections, one inverse to another (modulo context).   
+So, we will try to build more or less generic bidirectional mapping, saving the structure, that is two projections, one inverse to another (modulo context).
+
+# Internal representations
+
+To speak about the projections we need to define the underlying algebraic structures which we would like to preserve.
+The "algebra" of aby data can always be defined in terms of possible transformations of this data (find discussions about the "Principle of observability" somewhere, I will also write something later). 
+
+At the moment we know that what we can do with `json` is operations like `assoc, dissoc, getin` etc. Those operations are almost the same which we can do with trees. Not giving the exact definition let's look at some examples.
+
+## Paths
+Consider the `json` structure 
+```jsonc
+j = {a : {aa : "a.aa"}, b: {bb: "b.bb", cc: "b.cc", dd: {aaa: "b.dd.aaa"}}}.
+```
+The scheme contains keys `a, aa, b, bb, cc, dd, aaa` and data `"a.aa", "b.bb", "b.cc", "b.dd.aaa"`.
+We specially give the data names like that to show the fact, that we can always calculate the path from the start to 
+the particulat piece of data. The path here is the list of keys which univocally define the data inside the given `json`
+while the keys at each level are unique. Nevertheless it seems obvious we give the exact paths and data:
+```haskell
+a -> aa -> "a.aa"
+b -> bb -> "b.bb"
+b -> cc -> "b.cc"
+b -> dd -> aaa -> "b.dd.aaa".
+```
+Note that the information contained in the previous 4 lines is exactly the same as in the correspondent variable `j`.
+The above mentioned way of `json` data definition we will call 'paths' formalism. It is explicitly typed as follows:
+```haskell
+paths = [([key], data)]
+```
+that is the list of pairs of key list and final data. It is a simple enough data structure very similar to list of lists.
+However it contains some redundant repetitions of keys for data stored within the same heads.
+
+## Trees
+
+One can observe easily that the same data structure we can represent by typing it by tree
+```haskell
+tree = empty :: tree | leaf :: node -> tree | branch :: [(key, tree)] 
+```
+which is the tree with nodes of `node` type and links of `key` type. Our example can be shown as the
+following tree:
+
+![Alt text](https://g.gravizo.com/source/custom_mark10?https%3A%2F%2Fraw.githubusercontent.com%2Fandruiman%2Fjson%2Dcoq%2Fmaster%2Fjson%2Dmapping.md)
+<details> 
+<summary></summary>
+tree1
+  digraph G {
+    size ="4,4";
+    root [shape=box];
+    root -> root [weight=8, label="a"];
+    root -> b [weight=8];
+    a -> ;
+    main -> init [style=dotted];
+    main -> cleanup;
+    execute -> { make_string; printf};
+    init -> make_string;
+    edge [color=red];
+    main -> printf [style=bold,label="101 times"];
+    make_string [label="make a string"];
+    node [shape=box,style=filled,color=".7 .3 1.0"];
+    execute -> compare;
+  }
+tree1
+</details>
 
 
 ![Alt text](https://g.gravizo.com/source/custom_mark10?https%3A%2F%2Fraw.githubusercontent.com%2Fandruiman%2Fjson%2Dcoq%2Fmaster%2Fjson%2Dmapping.md)
