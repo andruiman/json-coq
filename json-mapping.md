@@ -119,7 +119,7 @@ tree1
     "root 6" [shape=box];
     "root 0" -> "root 1" [label="a"];
     "root 0" -> "root 2" [label="b"];
-    "root 1" -> "data 3 a.aa" [label = "aa"];
+    "root 1" -> "data 3 \"a.aa\"" [label = "aa"];
     "root 2" -> "data 4 b.bb" [label = "bb"];
     "root 2" -> "data 5 b.cc" [label = "cc"];
     "root 2" -> "root 6" [label = "dd"];
@@ -132,7 +132,30 @@ The `node` type represents `root` or `data`:
 ```haskell
 node = root_node :: Integer -> node | data_node :: Integer -> data -> node.
 ``` 
-We enumerate the nodes for further purposes.
+We enumerate the nodes for further purposes. The above given internal representation we will call 'tree'.
+
+Now we can see that actually the connections are always made between some nodes, and are labeled with some key.
+What if we store them separately.
+
+## Tables
+
+The idea to store the nodes and links separately leads us to the following representation, which can be named 
+'sparse tables'. This approach suggests storing nodes as a list like `[node]` and links as a square
+table of type `Maybe key`. The presense of key (having the `Just k` in the intersection) inside the table 
+at position `(m,n)` means that the link exists between node `m` and `n`. Having `Nothing` merely means there is 
+no link. To show our toy data we accumulate the node as 
+```haskell
+nodes = [root 0, root 1, root 2, data 3 "a.aa", data 4 "b.bb", data 5 "b.cc", root 6, data 7 "b.dd.aaa"]
+```
+and
+
+`table =` 
+
+| X        | `root 0` | `root 1` | `root 2` | 
+|:---------|:--------:|:--------:|:--------:|
+| `root 0` | X        |   a      |   b      |
+| `root 1` | X        |   X      |   X      |  
+| `root 2` | X        |   X      |   X      |
 
 
 
