@@ -25,7 +25,9 @@ That in particular means that in the following example
 
 The scheme transformation is a procedure which produces one `json` file or memory structure from another (and possibly back) saving some data. Within the next explanations we will try to transform different data representations (schemas) saving 
 as much data as possible and making the transformations bidirectional. So the mapping is being abstracted as follows
-``` f :: [scheme1, data1] <-> [scheme2, data2]```
+```jsonc 
+f :: [scheme1, data1] <-> [scheme2, data2].
+```
 Then we assume that the data is the same ```data1=data2```. Because we don't care about real binary data storage we mean that business pieces of information extracted from both data are equal and further omit this simply writing equality on data.
 For example we assume that in the following jsons the data are equal:
 ```jsonc
@@ -33,9 +35,9 @@ j1={phone: '1234'}
 j2={system : 'phone'; value :'1234'}
 ```
 What do we mean here? Actually we mean literally that there is no need for any addidtional knowledge to convert
-```j1<->j2``` in both directions and the behaviour of our system will be the same on both input
-```j2``` and ```f (j1)```. Look next
-```
+`j1<->j2` in both directions and the behaviour of our system will be the same on both input
+`j2` and `f (j1)`. Look next
+```jsonc
 j3={system : 'phone'; value :'1234'; type: 'contact'}
 ```
 And here let's suggest that we also want to have ```data3=data1```. That means the additional input ```{type: 'contact'}```
@@ -43,7 +45,7 @@ is constant and doesn't depend on other data. However this fact cannot be learne
 no information about the fact that we map contact there. So the fact about possiblity to transform `j1` to `j3` cannot be deduced just looking at data - we need to postulate it. 
 
 So finally we define the mapping as follows
-``` 
+```jsonc
 f12 :: [env1, scheme1, data1] -> [scheme2, data2]
 f21 :: [env2, scheme2, data2] -> [scheme1, data1]
 ```
@@ -54,7 +56,17 @@ Further we will suggest that it is given and will denote it as universal for bot
 # Bidirectional transformations
 
 Having two transformations `f12` and `f21` we need to get assured that the transformations are performed correctly
-which means that functions `f12` and `f21` are inverse to each other so `f12 . f21 = Id`
+what means that functions `f12` and `f21` are inverse to each other so `f12 . f21 = f21 . f12 = id`,  where `.` denotes 
+functional composition.
+
+Speaking business language, bidirectional transformation means that we do not loose data and do not add any additional data
+when transforming besides the context which always assumed as implicit parameter of all mappings (recall "we know what we map" (KWP)).
+
+What does it mean in practice we'll see in the next paragraphs along with the potential tricks and traps.
+
+Please note that one directional mapping can always be referred as 'projection'. Why? Actually we cannot project one integer to another, the term 'projection' means that we have some structure on the left side of projection and some structure on the right one. The projections means that the corresponding structures are "similar". In our case the structure is inherited from the json scheme.
+
+So, we will try to build more or less generic bidirectional mapping, saving the structure, that is two projections, one inverse to another (modulo context).   
 
 
 ![Alt text](https://g.gravizo.com/source/custom_mark10?https%3A%2F%2Fraw.githubusercontent.com%2Fandruiman%2Fjson%2Dcoq%2Fmaster%2Fjson%2Dmapping.md)
