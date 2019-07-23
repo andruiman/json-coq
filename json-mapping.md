@@ -151,11 +151,26 @@ and
 
 `table =` 
 
-| X        | `root 0` | `root 1` | `root 2` | 
-|:---------|:--------:|:--------:|:--------:|
-| `root 0` | X        |   a      |   b      |
-| `root 1` | X        |   X      |   X      |  
-| `root 2` | X        |   X      |   X      |
+| X        | `root 0` | `root 1` | `root 2` | `data 3 "a.aa"` | `data 4 "b.bb"` | `data 5 "b.cc"` | `root 6` | `data 7 "b.dd.aaa"`
+|:---------|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
+| `root 0` | X        |   a      |   b      | X  | X  | X  | X  | X|
+| `root 1` | X        |   X      |   X      | aa | X  | X  | X  | X| 
+| `root 2` | X        |   X      |   X      | X  | bb | cc | dd | X|
+| `data 3 "a.aa"` | X| X| X| X| X| X| X| X|
+| `data 4 "b.bb"` | X| X| X| X| X| X| X| X|
+| `data 5 "b.cc"` | X| X| X| X| X| X| X| X|
+| `root 6` | X| X| X| X| X| X| X| aaa|
+| `data 7 "b.dd.aaa"` | X| X| X| X| X| X| X| X| 
+
+The table is very sparse, because number of links is not more number of nodes (unless there are more 
+than one link to a node) (actually the number of links is 1 less than number of nodes in a fully connected tree), 
+and number of cells is squared number of nodes. The useful properties of the table are
+* There is no any link (the row is empty) for `data` nodes;
+* There is no any link before the diagonal (the node cannot link to the previously numbered element, if we build numbers correctly).
+And where the first properties is strict (it is the fact from correctness), the second one is flexible - one can organize
+the table with other indices - and the table will be still correct. From the opposite any correct table can always be presented in a such way - that is topological order of tree when the parents go before children.
+
+
 
 
 
