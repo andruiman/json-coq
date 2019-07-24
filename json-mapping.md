@@ -188,8 +188,43 @@ but not the
 ```haskell
 json -> series of [internal structure (our or language specific) -> transformation -> json] -> final json
 ```
+Collecting the json from the different internal representations is also a little different. While the `json` itself and `tree`
+data are united in one structure and there are no any extra parts, the `table` is separated data and potentially can consist of the unused data pieces. That in particular means that `table` representations can consists more than one `json` or some garbage data which should not be used at all. That is easily implemented by pointing the starting cell when collecting the `json` object. All the linked nodes will be collected, but not linked are out of the scope. This property allows not to think about the consintency (it is risky though) of the `table` data, just being assured that the all nodes belonging to the tree started in the first point (cell) are correctly addressed.
+
 
 # More rich toy data
+
+We start our playground with the following `json` data, which we believe to consist of equal information but ordered in different schemas. Here they are:
+
+```jsonc
+
+j1 = [{type : "person",
+       name : [{given: ["Andy"; "Michael"], family : "Watson"};
+               {given: ["Andrey"], family : "Watsonov"}],
+       telecom: [{system: "phone", value: "1234"};
+                 {system: "phone", value: "5678"};
+                 {system: "mail", value: "andy@watson.me"};
+                 {system: "mail", value: "andrey@mail.com"}]};
+      {type: "person",
+       name: [{given: ["John"; "Israel"], family: "Koen"};
+              {given: ["Ivan"], family: "Koinov"}],
+       telecom: [{system: "phone", value: "4321"};
+                 {system: "phone", value: "8765"};
+                 {system: "mail", value: "john@koen.me"}]}];
+                 
+j2 = [{given1: "Andy Michael", family1: "Watson",
+       given2: "Andrey", family2: "Watsonov",
+       phone1: "1234", phone2: "5678",
+       mail1: "andy@watson.me", mail2: "andrey@mail.ru"};
+      {given1: "John Israel", family1: "Koen",
+       given2: "Ivan", family2: "Koinov",
+       phone1: "4321", phone2: "8765",
+       mail1: "john@koen.me"}]
+```
+
+As one can see (it is actually cannot be just seen without context, we assume that context is a part of the common sense about keys semantics as English words) the business valued information are the same for both jsons, but the schemas are quite different. We can refer the second scheme as flat one, while the first is more structured. We can think of those schemas as a side effect of abstracting (or generalization) from `j2` to `j1`. `j1` can be a potential answer on the question "What will be the more real meaning of data structured in `j1`? What is actually `phone1` and `mail1` - are they the parts of something more general?" In typed languages the same processes are performed when creating the type model with classes or algebraic types. That is literally introduction of the human knowledge of the simulated system. In other words it is a process of (at least) partial transfer of context to the schema. The KWM principle is also realized through this step. Please see also disscusion at https://medium.com/@niquola/meta-attributes-aefcde87f59a.
+
+
 
 # Types of transformations
 
