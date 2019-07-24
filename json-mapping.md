@@ -225,10 +225,13 @@ j2 = [{given1: "Andy Michael", family1: "Watson",
 As one can see (it is actually cannot be just seen without context, we assume that context is a part of the common sense about keys semantics as English words) the business valued information are the same for both jsons, but the schemas are quite different. We can refer the second scheme as flat one, while the first is more structured. We can think of those schemas as a side effect of abstracting (or generalization) from `j2` to `j1`. `j1` can be a potential answer on the question "What will be the more real meaning of data structured in `j1`? What is actually `phone1` and `mail1` - are they the parts of something more general?" In typed languages the same processes are performed when creating the type model with classes or algebraic types. That is literally introduction of the human knowledge of the simulated system. In other words it is a process of (at least) partial transfer of context to the schema. The KWM principle is also realized through this step. Please see also disscusion at https://medium.com/@niquola/meta-attributes-aefcde87f59a.
 
 Short sketch about why humans do this (to prevent the case): 
-- Navigator, devices?!
-- Three-fifteen!
-- What are those "three-fifteen"?!
-- And what about the devices?!
+\- Navigator, devices?!
+
+\- Three-fifteen!
+
+\- What are those "three-fifteen"?!
+
+\- And what about the devices?!
 
 
 # Types of transformations
