@@ -60,25 +60,8 @@ match jt with
              (S n, app jr [ind_data_node n s] , newtb)
 | tlbranch tl => fold_left (fun nlj kt => jtree_table' n (Some (inr (fst kt))) (snd kt) nlj) 
                             tl (S n, app jr [ind_root_node m n], jtable_set jtb m n k)
-
-(*let newtb':= jtable_set jtb m n k in
-                 let jr' := app jr [ind_root_node m n] in
-                 let fix iter_tree m k tl nlj {struct tl}:=
-                 match tl with
-                 | [] => nlj
-                 | (a,t)::ts => iter_tree m None ts (jtree_table' m (Some (inr a)) t nlj)
-                 end in
-                 iter_tree n k tl (S n, jr', newtb')*)
 | tmbranch tm => fold_left (fun nlj kt => jtree_table' n (Some (inl (fst kt))) (snd kt) nlj) 
                             tm (S n, app jr [ind_root_node m n], jtable_set jtb m n k)
-(*let newtb':= jtable_set jtb m n k in
-                 let jr' := app jr [ind_root_node m n] in
-                 let fix iter_tree m k tm nlj {struct tm}:=
-                 match tm with
-                 | [] => nlj
-                 | (a,t)::ts => iter_tree m None ts (jtree_table' m (Some (inl a)) t nlj)
-                 end in
-                 iter_tree n k tm (S n, jr', newtb')*)
 end.
 
 Definition jtree_table jt := let tb3 := jtree_table' 0 None jt (0, [],  
@@ -355,6 +338,14 @@ match mtr with
                          | Some j' => j'
                          end
 end.
+
+(* Haskell extraction directives *)
+
+Require Extraction.
+Extraction Language Haskell.
+Extraction "coq-hs/JsonTable.hs" jtable_tree.
+
+
 
 Eval compute in (tree_path_ind [inr 2; inl "baz"; inl "x"]
                  (json_tree ('[{"foo" # '[$"Andy"; $"Peter"]}; 

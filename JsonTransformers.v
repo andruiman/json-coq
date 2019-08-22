@@ -33,6 +33,12 @@ let jt := json_tree j in
 let llk := path_parse path [] jt in
 fold_right f j llk. 
 
+Fixpoint replicate {X} n (x:X): list X :=
+match n with
+| O => []
+| S n' => x::(replicate n' x)
+end.
+
 Definition json_rename (newv: JsonData + key) (lk: jpath) (j: json) :=
 let tr := json_tree j in
 let (jr, tb) := jtree_table tr in
@@ -42,6 +48,9 @@ match minds, newv with
 | Some (inl k), inl newv => 
                   let jr' := replace k (clear_node_index jr) (data_node newv) in
                   table_json_default jr' tb j
+| Some (inr (m,n)), inl newv => let jr' := replace n (clear_node_index jr) (data_node newv) in
+                                let tb' := replace n tb (replicate (length jr) None) in
+                                table_json_default jr' tb' j
 | Some (inl k), inr newv =>  let tb' := fold_right (fun m tb => let x := mnth_error tb m k in
                                                                 if x then jtable_set tb m k (Some (inl newv))
                                                                      else tb) tb (seq 0 (length jr)) in
@@ -49,9 +58,32 @@ match minds, newv with
 | Some (inr (m, n)), inr newv => 
                   let tb' := jtable_set tb m n (Some (inl newv)) in
                   table_json_default (clear_node_index jr) tb' j 
-| _, _ =>  j
 end.
 
+
+Definition json_rename_if (f: jtree -> bool) (newv: JsonData + key) (lk: jpath) (j: json) :=
+let tr := json_tree j in
+let mtr' := tree_getin lk tr in
+match mtr' with
+| None => j
+| Some tr' => if (f tr') then json_rename newv lk j else j
+end.
+
+Definition json_rename_with (f: jpath -> jtree -> jtree -> JsonData + key) (lk: jpath) (j: json) :=
+let tr := json_tree j in
+let mtr' := tree_getin lk tr in
+match mtr' with
+| None => j
+| Some tr' => json_rename (f lk tr tr') lk j
+end.
+
+Definition json_rename_with_if (b: jtree -> bool) (f: jpath -> jtree -> jtree -> JsonData + key) (lk: jpath) (j: json) :=
+let tr := json_tree j in
+let mtr' := tree_getin lk tr in
+match mtr' with
+| None => j
+| Some tr' => if (b tr') then json_rename (f lk tr tr') lk j else j
+end.
 
 Inductive DestructStrategy := DestructStrategy0.
 
@@ -72,7 +104,7 @@ match ilt, ilf with
                          | inr ix, IndRightMergeToKey f => (Some (inl (f (writeNat ix))))::l
                          end
 | x::ilt', None::ilf' => x::(merge_inds ilt' ilf' s b)
-(*shouldn't be happened*)
+(*shouldn't happen*)
 | (Some x)::ilt',(Some y)::ilf' => 
                             let z:= match x,y with
                                     | inl kx, inl ky => inl (kx ++ "." ++ ky)
@@ -145,6 +177,21 @@ match mj' with
 | Some j' => j'
 end.
 
+Definition json_merge (lkfrom lkto: jpath) (j: json) : json :=
+let tr := json_tree j in
+let tr' := tree_submerge lkto lkfrom tr MergeStrategy0 in
+let mj' := tree_json tr' in
+match mj' with
+| None => j
+| Some j' => j'
+end.
+
+Eval compute in (json_merge [inl "b"] [inl "a"]  {"a" # '[], "b" # $"foo"}).
+
+Definition json_merge_with (f: jpath -> jpath) (lkto: jpath) (j: json) : json :=
+json_merge (f lkto) lkto j.
+
+
 (*CREATE AT "*.telecom"*)
 Definition json_create (s: string) (lk: jpath) (j: json) : json :=
 let jt := json_tree j in
@@ -178,6 +225,7 @@ match mj' with
 | Some j' => j'
 end.
 
+
 (* COLLECT "telecom*" TO "telecom" AT "*" *)
 Definition json_collect (what pto: string) f (root: jpath) (j: json) : json :=
 let jt := json_tree j in
@@ -201,6 +249,107 @@ match mj' with
 | None => j
 | Some j' => j'
 end.
+
+Fixpoint jtree_filter_key (f: key -> bool) (t: key-> key) (jt: jtree) : jtree :=
+match jt with
+| tleaf _ => jt
+| tlbranch tl => let tl' := map (fun kt => jtree_filter_key f t (snd kt)) tl in
+                 let tl'' := filter (fun t => match t with
+                                               | tlbranch [] | tmbranch [] => false
+                                               | _ => true
+                                              end) tl' in
+                 tlbranch (indexate tl'')
+| tmbranch tm => let tm' := map (fun kt => (fst  kt, jtree_filter_key f t (snd kt))) tm in
+                 let tm'' := filter (fun kt => f (fst kt)) tm' in
+                 let tm''' := filter (fun kt => match (snd kt) with
+                                                | tlbranch [] | tmbranch [] => false
+                                                | _ => true
+                                                end) tm'' in
+                 let tm'''' := map (fun kt => (t (fst kt), snd kt)) tm''' in
+                 tmbranch tm''''
+end.
+
+Eval compute in (jtree_filter_key (fun k => eqKey k "foo") (@id key) (tmbranch [("foo", tleaf "bar")])). 
+
+Definition json_extract (p: key) (j: json) : json  :=
+let jt := json_tree j in
+let jt' := jtree_filter_key (prefix p) (remove_prefix p) jt in
+let mj' := tree_json jt' in
+match mj' with
+| None => j
+| Some j' => j'
+end.
+
+Definition tolkpath (ss: list string) : jpath :=
+map (fun s =>
+     let mn := num_of_string s in
+     match mn with
+     | None => inl s
+     | Some n => inr n
+     end) ss.
+
+Fixpoint jtree_collect_all (p: key) (jt: jtree) : jtree :=
+match jt with
+| tleaf _ => jt
+| tlbranch tl => tlbranch (map (fun kt => (fst kt, jtree_collect_all p (snd kt))) tl)
+| tmbranch tm => fold_left (fun acctree kt => 
+                            let ks := split_string (fst kt) p in
+                            match ks with
+                            | [] => tree_force_mergein [inl (fst kt)] acctree (jtree_collect_all p (snd kt)) MergeStrategy0
+                            | [k'] => tree_force_mergein [inl (fst kt)] acctree (jtree_collect_all p (snd kt)) MergeStrategy0
+                            | pth => tree_force_mergein (tolkpath pth) acctree (jtree_collect_all p (snd kt)) MergeStrategy0
+                            end) tm (tmbranch [])
+end.
+
+
+Definition json_collect_all (p: key) (lk: jpath) (j: json) : json :=
+let jt := json_tree j in
+let m := tree_getin lk jt in
+match m with
+| None => j
+| Some jt' => let jt'' := jtree_collect_all p jt' in
+              let jt''' := tree_setin lk jt jt'' in 
+              let mj' := tree_json jt''' in
+match mj' with
+| None => j
+| Some j' => j'
+end
+end.
+
+Check last.
+
+
+Definition json_copy (lkto: jpath) (lkfrom: jpath) (j: json) : json :=
+let jt := json_tree j in
+let mjtf := tree_getin lkfrom jt in
+let jt' := match mjtf with
+| Some jtf => let sl := last lkfrom (inr 0) in
+              let jtf' := match sl with
+                          | inr k => tlbranch [(k, jtf)]
+                          | inl k => tmbranch [(k, jtf)]
+                          end in
+              let nt := tree_mergein lkto jt jtf' MergeStrategy0 in
+              nt
+| None => jt
+end in
+let mj' := tree_json jt' in
+match mj' with
+| None => j
+| Some j' => j'
+end.
+
+Definition json_move (lkto: jpath) (lkfrom: jpath) (j: json) : json :=
+let j' := json_copy lkto lkfrom j in
+json_remove lkfrom j'.
+
+Definition json_movefrom_with (f: jpath -> jpath) (lkfrom: jpath) (j: json) : json :=
+json_move (f lkfrom) lkfrom j.
+
+Definition json_moveto_with (f: jpath -> jpath) (lkto: jpath) (j: json) : json :=
+json_move lkto (f lkto) j.
+
+Eval compute in (json_move [inl "a"] [inl "b"] {"a" # {"r" # $"v"}, "b" # $"foo"}).
+
 
 (*tests*)
 
@@ -286,6 +435,8 @@ Eval compute in json25'.
 Let json26' := do_at_nodes json25' json_destruct "*.telecom*".
 Eval compute in json26'.
 Let json27' := do_at_nodes json26' (json_rename (inr "given1")) "*.name-0-given".
+Eval compute in json27'.
+
 Let json28' := do_at_nodes json27' (json_rename (inr "given2")) "*.name-1-given".
 Let json29' := do_at_nodes json28' (json_rename (inr "family1")) "*.name-0-family".
 Let json210' := do_at_nodes json29' (json_rename (inr "family2")) "*.name-1-family".

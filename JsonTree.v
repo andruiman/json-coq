@@ -242,6 +242,7 @@ match lk with
            end 
 end.
 
+
 Fixpoint tree_setin (lk: jpath) (to_jt jt: jtree): jtree :=
 match lk with
 | [] => jt
@@ -257,12 +258,44 @@ match lk with
            end 
 end.
 
+Fixpoint tree_force_setin (lk: jpath) (to_jt jt: jtree): jtree :=
+match lk with
+| [] => jt
+| k::ks => let mjt' := tree_get k to_jt in
+           match mjt' with
+           | None => let nt := tree_force_setin ks (match ks with
+                                                    | (inl _)::_ => tmbranch []
+                                                    | (inr _)::_ => tlbranch []
+                                                    | [] => tlbranch []
+                                                    end) jt in
+                                 match k, to_jt with
+                                 | inr k, tlbranch tl => tlbranch (app tl [(k, nt)])
+                                 | inl k, tmbranch tm => tmbranch (app tm [(k, nt)])
+                                 | _,_ => to_jt
+                                 end
+           | Some (n, to_jt') => let nt := tree_force_setin ks to_jt' jt in
+                                 match k, to_jt with
+                                 | inr k, tlbranch tl => (tlbranch (replace n tl (k, nt)))
+                                 | inl k, tmbranch tm => (tmbranch (replace n tm (k, nt)))
+                                 | _,_ => to_jt
+                                 end
+           end 
+end.
+
 Definition tree_mergein (lk: jpath) (to_jt jt: jtree) s: jtree :=
 let mjt':= tree_getin lk to_jt in
 match mjt' with
 | None => to_jt
 | Some to_jt' => tree_setin lk to_jt (merge_trees to_jt' jt s)
 end.
+
+Definition tree_force_mergein (lk: jpath) (to_jt jt: jtree) s: jtree :=
+let mjt':= tree_getin lk to_jt in
+match mjt' with
+| None => tree_force_setin lk to_jt jt
+| Some to_jt' => tree_setin lk to_jt (merge_trees to_jt' jt s)
+end.
+
 
 Definition tree_submerge_with (lk_to lk_from: jpath) 
                               (f: jpath -> jtree -> jtree) (jt: jtree) (s: MergeStrategyT): jtree :=

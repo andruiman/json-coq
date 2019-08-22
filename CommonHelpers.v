@@ -41,6 +41,26 @@ match l, n with
 | a::l', S n' => a::(replace n' l' x)
 end.
 
+Fixpoint take {X} (n: nat) (l: list X): list X :=
+match n, l with
+| O, _ => []
+| S n', [] => []
+| S n', x::l' => x::(take n'  l')
+end.
+
+Fixpoint drop {X} (n: nat) (l: list X): list X :=
+match n, l with
+| O, _ => l
+| S n', [] => []
+| S n', x::l' => drop n' l'
+end.
+
+Definition droplast {X} (n: nat) (l: list X): list X :=
+rev (drop n (rev l)).
+
+Eval compute in (droplast 2 [1;2;3]). 
+
+
 Lemma replace_replaced: forall X n l (x: X), nth n (replace n l x) x = x.
 Proof.
  intros. generalize dependent n. induction l; intros; destruct n; auto.

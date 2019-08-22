@@ -62,10 +62,18 @@ Definition split_string s p := split_string' s p (String.length s).
 
 
 Eval compute in (split_string "a.b.c.*" ".").
-Eval compute in (split_string "aaaa" ".").
+Eval compute in (split_string "aaaa." ".").
 Eval compute in (split_string "." ".").
 Eval compute in (split_string "aaaa" "").
 Eval compute in (split_string ".aaa.a.e." ".").
+
+Fixpoint concat_with (p: string) (ls: list string) : string :=
+match ls with
+| [] => ""
+| [s]  => s
+| s::ls' => s++p++(concat_with p ls')
+end.
+
 
 Require Import String Ascii.
 Definition num_of_ascii (c: ascii) : option nat :=
@@ -140,6 +148,11 @@ match p, s with
                                 match_string xp xs else false
 | _, _ => false
 end.
+
+Check concat.
+SearchAbout (ascii -> string).
+
+Eval compute in ("s" ++ (String "034"%char EmptyString)).
 
 
 Eval compute in (match_string "abc" "abc").

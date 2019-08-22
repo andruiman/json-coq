@@ -58,7 +58,24 @@ Import JsonNotations.
 Local Open Scope json_scope.
 Delimit Scope json_scope with json.
 
+Check String.concat.
+Eval compute in (substring 0 1 """").
 
+Fixpoint json_pprint (j: json) : string :=
+match j with
+| json_data s => "'" ++ s ++ "'"
+| json_list l => let ls := map json_pprint l in
+                 "[" ++ (String.concat ", " ls) ++ "]" 
+| json_map m =>  let fix iter_map m :=
+                 match m with 
+                 | empty => ""
+                 | mapkv k v empty => "'" ++ k ++ "': " ++ json_pprint v
+                 | mapkv k v m' => "'" ++ k ++ "': " ++ json_pprint v ++ "," ++ (iter_map m')
+                 end in
+                 "{" ++ (iter_map m) ++ "}"
+end.
+
+Eval compute in (json_pprint '[ $"bar"; {"foo" # $"baz"}]).
 
 Definition jsonmap (f: json -> json) (j: json) :=
 match j with
