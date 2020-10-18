@@ -14,6 +14,10 @@ Local Open Scope list_scope.
 Local Open Scope string_scope.
 Local Open Scope json_scope.
 
+Print from_string.
+
+Print flatten.
+
 Definition path_tree (ls: list string) root jt : list jpath :=
 let mt := tree_getin root jt in 
 match mt with 
@@ -23,6 +27,8 @@ match mt with
                                     ts) [([],jt)] ls in
                         map (fun p => app root (fst p)) jts
 end.
+
+Check path_tree.
 
 Definition path_parse (s: string) (root: jpath) jt : list jpath :=
 let ls := split_string s "." in
@@ -153,20 +159,27 @@ match minds with
                        end
 end.
 
-Definition json_remove (lk: jpath) (j: json): json :=
+
+Definition json_remove_if (f: jtree -> bool) (lk: jpath) (j: json): json :=
 let tr := json_tree j in
 let (jr, tb) := jtree_table tr in
 let minds := tree_path_ind lk tr in
-match minds with
-| None => j
-| Some (inl k) => let tb' := fold_right (fun m tb => jtable_set tb m k None) 
+let b := option_map f (tree_getin lk tr) in
+match minds, b with
+| _, None | _, Some false | None, _ => j
+| Some (inl k), Some true => let tb' := fold_right (fun m tb => jtable_set tb m k None) 
                                           tb (seq 0 (length jr)) in
-                  table_json_default (clear_node_index jr) tb' j 
-
-| Some (inr (m, n)) => let tb' := jtable_set tb m n None in
+                  table_json_default (clear_node_index jr) tb' j
+| Some (inr (m, n)), Some true => let tb' := jtable_set tb m n None in
                        table_json_default (clear_node_index jr) tb' j
-                           
 end.
+
+Definition json_remove := json_remove_if (fun _ => true).
+
+Definition json_remove_empty := json_remove_if (fun t => match t with
+                                                         | tlbranch [] | tmbranch []  => true
+                                                         | _ => false
+                                                         end).
 
 Definition json_modify (f: jtree -> jtree) (lk: jpath) (j: json) : json :=
 let tr := json_tree j in
@@ -348,6 +361,45 @@ json_move (f lkfrom) lkfrom j.
 Definition json_moveto_with (f: jpath -> jpath) (lkto: jpath) (j: json) : json :=
 json_move lkto (f lkto) j.
 
+
+Definition fapply {X Y} x (f: X -> Y) := f x.
+Infix ">>=" := fapply (left associativity,  at level 102).
+
+Definition json_create_set k v lk j := json_create k lk j >>=
+                                       json_rename (inl v) (app lk [inl k]).
+                                       
+Definition json_create_setwith k f lk j := json_create k lk j >>=
+                                           json_rename_with f (app lk [inl k]).
+               
+
+
+Definition EQ_VALUE_AT lk name := fun t => let mt' := tree_getin lk t in
+                                                   match mt' with
+                                                   | None => false
+                                                   | Some (tleaf s) => eqKey s name
+                                                   | _ => false
+                                                   end.
+                                                   
+Definition RENAME_KEY name d : jpath -> jtree ->jtree -> JsonData + key := 
+fun (jp:jpath) (_:jtree) (_:jtree) => match (last jp (inl "")) with
+                            | inr k => inr (name ++ d ++ (writeNat k))
+                            | inl k => let ls := split_string k d in
+                                       let s := last ls "" in
+                                       inr (name ++ d ++ s) 
+                            end.
+
+Definition COLLECT_LIST := fun (k: jpath) (jt: jtree) => tlbranch [(0, jt)].
+
+Definition COLLECT_MAP := fun lk (jt: jtree) => let l := last lk (inl "error") in
+                                       let sl := writeJPoint l in
+                                       let sl' := split_string sl "-" in
+                                       let sl'' := String.concat "-" (tail sl') in
+                                       tmbranch [(sl'', jt)].
+
+ 
+
+Definition DO f w j := do_at_nodes j f w.
+
 Eval compute in (json_move [inl "a"] [inl "b"] {"a" # {"r" # $"v"}, "b" # $"foo"}).
 
 
@@ -410,7 +462,19 @@ Let tree2 := json_tree json2.
 Let tb22 := jtree_table tree2.
 Let tab2 := snd tb22.
 
+Let j0 := '[{"foo" # '[$"Andy"; $"Peter"]}; 
+                    {"bar" # $"Good"};
+                    {"baz" # {"x" # '[$"d"; $"f"]}}].
+                   
+Let j1 := j0 >>=
+        DO json_destruct "*.foo" >>=
+        DO (json_create "tmp") "*" >>=  
+        DO (json_collect "foo-*" "tmp" COLLECT_LIST) "*" >>= 
+        DO json_remove_empty "*.tmp" >>=
+        DO json_remove "*.foo-*" >>=
+        DO (json_rename (inr "foo")) "*.tmp".
 
+Compute (eq_refl : j0 = j1).
 
 Eval compute in (path_parse "*.name" [] tree2).
 
